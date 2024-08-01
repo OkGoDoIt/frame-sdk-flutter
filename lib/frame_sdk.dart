@@ -44,6 +44,7 @@ class Frame {
 
   Future<bool> connect(
       {Duration? timeout = const Duration(seconds: 30)}) async {
+    bool wasConnected = isConnected;
     if (_connectedDevice == null) {
       try {
         _connectedDevice = await BrilliantBluetooth.getNearestFrame().timeout(
@@ -60,8 +61,25 @@ class Frame {
       _connectedDevice =
           await BrilliantBluetooth.reconnect(_connectedDevice!.id);
     }
+    bool isConnectedNow = _connectedDevice?.isConnected ?? false;
 
-    return _connectedDevice?.isConnected ?? false;
+    if (!wasConnected && isConnectedNow) {
+      await bluetooth.sendBreakSignal();
+      await injectAllLibraryFunctions();
+      String utcUnixEpochTime =
+          (DateTime.now().toUtc().millisecondsSinceEpoch ~/ 1000).toString();
+      String timeZoneOffset =
+          DateTime.now().timeZoneOffset.inMinutes > 0 ? '+' : '-';
+      timeZoneOffset +=
+          '${DateTime.now().timeZoneOffset.inHours.abs().toString().padLeft(2, '0')}:${(DateTime.now().timeZoneOffset.inMinutes.abs() % 60).toString().padLeft(2, '0')}';
+      logger.info(
+          "Setting time to $utcUnixEpochTime and time zone to $timeZoneOffset");
+      await runLua(
+          "is_awake=true;frame.time.utc($utcUnixEpochTime);frame.time.zone('$timeZoneOffset')",
+          checked: true);
+    }
+
+    return isConnectedNow;
   }
 
   Future<void> disconnect() async {
@@ -76,7 +94,8 @@ class Frame {
   Future<void> ensureConnected() async {
     if (!isConnected) {
       if (!await connect()) {
-        throw Exception("Failed to connect to Frame device");
+        throw BrilliantBluetoothException(
+            "Failed to connect to Frame device with the timeout of ${bluetooth.defaultTimeout}");
       }
     }
   }
@@ -142,11 +161,22 @@ class Frame {
     return response;
   }
 
+  Future<String> evaluate(String luaExpression) async {
+    await ensureConnected();
+    final result =
+        await runLua("prntLng(tostring($luaExpression))", awaitPrint: true);
+    return result ?? '';
+  }
+
   Future<int> getBatteryLevel() async {
     await ensureConnected();
     final response = await bluetooth.sendString("print(frame.battery_level())",
         awaitResponse: true);
-    return int.parse(response ?? "-1");
+    try {
+      return double.parse(response ?? "-1").toInt();
+    } catch (e) {
+      return -1;
+    }
   }
 
   Future<void> delay(Duration duration) async {
@@ -163,12 +193,16 @@ class Frame {
       if (_luaOnWake != null || _callbackOnWake != null) {
         String runOnWake = _luaOnWake ?? "";
         if (_callbackOnWake != null) {
-          runOnWake = "frame.bluetooth.send('\\x${FrameDataTypePrefixes.wake.valueAsHex}');$runOnWake";
+          runOnWake =
+              "frame.bluetooth.send('\\x${FrameDataTypePrefixes.wake.valueAsHex}');$runOnWake";
         }
         runOnWake = "if not is_awake then;is_awake=true;$runOnWake;end";
+        logger.info("Running on wake: $runOnWake");
         motion.runOnTap(luaScript: runOnWake);
       }
-      await runLua("frame.display.text(' ',1,1);frame.display.show();frame.camera.sleep()", checked: true);
+      await runLua(
+          "frame.display.text(' ',1,1);frame.display.show();frame.camera.sleep()",
+          checked: true);
       camera.isAwake = false;
     }
   }
@@ -181,8 +215,6 @@ class Frame {
 
   Future<void> injectLibraryFunction(
       String name, String function, String version) async {
-    await ensureConnected();
-
     final exists =
         await bluetooth.sendString("print($name ~= nil)", awaitResponse: true);
     logger.info("Function $name exists: $exists");
@@ -217,8 +249,6 @@ class Frame {
   Future<void> injectAllLibraryFunctions() async {
     final libraryVersion =
         libraryFunctions.hashCode.toRadixString(35).substring(0, 6);
-
-    await ensureConnected();
     final response = await bluetooth.sendString(
         "frame.file.mkdir(\"lib-$libraryVersion\");print(\"c\")",
         awaitResponse: true);
@@ -250,7 +280,8 @@ class Frame {
     }
     _callbackOnWake = callback;
     _luaOnWake = luaScript;
-    _wakeSubscription = bluetooth.getDataOfType(FrameDataTypePrefixes.wake).listen((data) {
+    _wakeSubscription =
+        bluetooth.getDataOfType(FrameDataTypePrefixes.wake).listen((data) {
       if (_callbackOnWake != null) {
         _callbackOnWake!();
       }
@@ -265,8 +296,7 @@ class Frame {
           "is_awake=true;frame.bluetooth.send('\\x${FrameDataTypePrefixes.wake.valueAsHex}')",
           checked: true);
     } else if (luaScript != null && callback == null) {
-      await files.writeFile(
-          "main.lua", utf8.encode("is_awake=true;$luaScript"),
+      await files.writeFile("main.lua", utf8.encode("is_awake=true;$luaScript"),
           checked: true);
     } else {
       await files.writeFile("main.lua", utf8.encode("is_awake=true"),

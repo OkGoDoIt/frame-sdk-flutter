@@ -38,12 +38,14 @@ class Camera {
   }) async {
     if (!isAwake) {
       await frame.runLua("frame.camera.wake()", checked: true);
+      await Future.delayed(const Duration(milliseconds: 500));
       isAwake = true;
     }
-
+    
+    final response = frame.bluetooth.waitForData();
     await frame.runLua(
         "cameraCaptureAndSend($quality,${autofocusSeconds ?? 'nil'},$autofocusType)");
-    final imageBuffer = await frame.bluetooth.waitForData();
+    final imageBuffer = await response;
 
     if (imageBuffer.isEmpty) {
       throw Exception("Failed to get photo");

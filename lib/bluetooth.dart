@@ -8,7 +8,7 @@ import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:flutter/services.dart';
 import 'package:logging/logging.dart';
 
-final _log = Logger("Bluetooth");
+final _log = Logger("Frame");
 
 const _frameDataPrefix = 0x01;
 
@@ -23,7 +23,7 @@ enum FrameDataTypePrefixes {
 
   const FrameDataTypePrefixes(this.value);
   final int value;
-  String get valueAsHex => value.toRadixString(16);
+  String get valueAsHex => value.toRadixString(16).padLeft(2, '0');
 }
 
 class BrilliantBluetoothException implements Exception {
@@ -116,27 +116,27 @@ class BrilliantDevice {
             ongoingPrintResponseChunkCount == null) {
           ongoingPrintResponse = Uint8List(0);
           ongoingPrintResponseChunkCount = 0;
-          _log.info("Starting receiving new long printed string");
+          _log.fine("Starting receiving new long printed string");
         }
         ongoingPrintResponse =
             Uint8List.fromList(ongoingPrintResponse + event.value.sublist(1));
-        if (logDebugging) {
-          _log.info(
-              "Received long text chunk #$ongoingPrintResponseChunkCount: ${utf8.decode(event.value.sublist(1))}");
-        }
+
+        ongoingPrintResponseChunkCount++;
+        final receivedString = utf8.decode(event.value.sublist(1));
+        _log.finer(
+            "Received long text chunk #$ongoingPrintResponseChunkCount: $receivedString");
+
         if (ongoingPrintResponse.length > maxReceiveBuffer) {
           _log.severe(
-              "Buffered received long printed string is more than $maxReceiveBuffer bytes: ${ongoingPrintResponse.length} bytes received");
+              "Buffered received long printed string is more than $maxReceiveBuffer bytes: ${ongoingPrintResponse.lengthInBytes} bytes received");
           throw BrilliantBluetoothException(
-              "Buffered received long printed string is more than $maxReceiveBuffer bytes: ${ongoingPrintResponse.length} bytes received");
+              "Buffered received long printed string is more than $maxReceiveBuffer bytes: ${ongoingPrintResponse.lengthInBytes} bytes received");
         }
       } else if (event.value[0] == FrameDataTypePrefixes.longTextEnd.value) {
         final totalExpectedChunkCount =
             int.parse(utf8.decode(event.value.sublist(1)));
-        if (logDebugging) {
-          _log.info(
-              "Received final string chunk count: $totalExpectedChunkCount");
-        }
+        _log.finer(
+            "Received final string chunk count: $totalExpectedChunkCount");
         if (ongoingPrintResponseChunkCount != totalExpectedChunkCount) {
           _log.warning(
               "Chunk count mismatch in long received string (expected $totalExpectedChunkCount, got $ongoingPrintResponseChunkCount)");
@@ -146,14 +146,13 @@ class BrilliantDevice {
         final completePrintResponse = utf8.decode(ongoingPrintResponse!);
         ongoingPrintResponse = null;
         ongoingPrintResponseChunkCount = null;
-        if (logDebugging) {
-          _log.info(
-              "Finished receiving long printed string: $completePrintResponse");
-        }
+        _log.fine(
+            "Finished receiving long printed string: $completePrintResponse");
         yield completePrintResponse;
       } else {
-        _log.info("Received string: ${utf8.decode(event.value)}");
-        yield utf8.decode(event.value);
+        final receivedString = utf8.decode(event.value);
+        _log.fine("Received string: $receivedString");
+        yield receivedString;
       }
     }
   }
@@ -171,14 +170,13 @@ class BrilliantDevice {
             ongoingDataResponseChunkCount == null) {
           ongoingDataResponse = Uint8List(0);
           ongoingDataResponseChunkCount = 0;
-          _log.info("Starting receiving new long data");
+          _log.fine("Starting receiving new long data");
         }
         ongoingDataResponse =
             Uint8List.fromList(ongoingDataResponse + event.value.sublist(2));
-        if (logDebugging) {
-          _log.info(
-              "Received long data chunk #$ongoingDataResponseChunkCount: ${event.value.sublist(2).length} bytes");
-        }
+        ongoingDataResponseChunkCount++;
+        _log.finer(
+            "Received long data chunk #$ongoingDataResponseChunkCount: ${event.value.sublist(2).length} bytes");
         if (ongoingDataResponse.length > maxReceiveBuffer) {
           _log.severe(
               "Buffered received long data is more than $maxReceiveBuffer bytes: ${ongoingDataResponse.length} bytes received");
@@ -189,10 +187,7 @@ class BrilliantDevice {
           event.value[1] == FrameDataTypePrefixes.longDataEnd.value) {
         final totalExpectedChunkCount =
             int.parse(utf8.decode(event.value.sublist(2)));
-        if (logDebugging) {
-          _log.info(
-              "Received final data chunk count: $totalExpectedChunkCount");
-        }
+        _log.finer("Received final data chunk count: $totalExpectedChunkCount");
         if (ongoingDataResponseChunkCount != totalExpectedChunkCount) {
           _log.warning(
               "Chunk count mismatch in long received data (expected $totalExpectedChunkCount, got $ongoingDataResponseChunkCount)");
@@ -202,13 +197,11 @@ class BrilliantDevice {
         final completeDataResponse = ongoingDataResponse!;
         ongoingDataResponse = null;
         ongoingDataResponseChunkCount = null;
-        if (logDebugging) {
-          _log.info(
-              "Finished receiving long data: ${completeDataResponse.length} bytes");
-        }
+        _log.fine(
+            "Finished receiving long data: ${completeDataResponse.length} bytes");
         yield completeDataResponse;
       } else if (event.value[0] == _frameDataPrefix) {
-        _log.info("Received data: ${event.value.sublist(1)}");
+        _log.fine("Received data: ${event.value.length - 1} bytes");
         yield Uint8List.fromList(event.value.sublist(1));
       }
     }
@@ -257,9 +250,7 @@ class BrilliantDevice {
     Duration? timeout,
   }) async {
     try {
-      if (logDebugging) {
-        _log.info("Sending string: $string");
-      }
+      _log.info("Sending string: $string");
 
       if (state != BrilliantConnectionState.connected) {
         throw ("Device is not connected");
@@ -286,7 +277,25 @@ class BrilliantDevice {
   }
 
   Future<String> waitForString({Duration? timeout}) async {
-    return stringResponse.timeout(timeout ?? defaultTimeout).first;
+    StreamSubscription<String>? subscription;
+    Completer<String> completer = Completer();
+    try {
+      subscription =
+          stringResponse.timeout(timeout ?? defaultTimeout).listen((event) {
+        subscription?.cancel();
+        completer.complete(event);
+      });
+    } on TimeoutException {
+      _log.warning("Timeout while waiting for string.");
+      if (subscription != null) {
+        subscription.cancel();
+      }
+      if (!completer.isCompleted) {
+        completer.completeError(const BrilliantBluetoothException(
+            "Timeout while waiting for string"));
+      }
+    }
+    return completer.future;
   }
 
   Future<Uint8List?> sendData(Uint8List data,
@@ -324,13 +333,27 @@ class BrilliantDevice {
   }
 
   Future<Uint8List> waitForData({Duration? timeout}) async {
+    StreamSubscription<Uint8List>? subscription;
+    Completer<Uint8List> completer = Completer();
     try {
-      return await dataResponse.timeout(timeout ?? defaultTimeout).first;
-    } catch (TimeoutException) {
+      subscription =
+          dataResponse.timeout(timeout ?? defaultTimeout).listen((event) {
+        subscription?.cancel();
+        completer.complete(event);
+      });
+    } on TimeoutException {
       _log.warning("Timeout while waiting for data.");
+      if (subscription != null) {
+        subscription.cancel();
+      }
+      if (!completer.isCompleted) {
+        completer.completeError(const BrilliantBluetoothException(
+            "Timeout while waiting for data"));
+      }
       return Future.error(
           const BrilliantBluetoothException("Timeout while waiting for data"));
     }
+    return completer.future;
   }
 
   Future<void> uploadScript(String fileName, String filePath) async {
@@ -540,8 +563,7 @@ class BrilliantDevice {
 }
 
 class BrilliantBluetooth {
-  static final Guid _serviceUUID =
-      Guid("7a230001-5475-a6a4-654c-8431f6ad49c4");
+  static final Guid _serviceUUID = Guid("7a230001-5475-a6a4-654c-8431f6ad49c4");
   static final Guid _txCharacteristicUUID =
       Guid("7a230002-5475-a6a4-654c-8431f6ad49c4");
   static final Guid _rxCharacteristicUUID =

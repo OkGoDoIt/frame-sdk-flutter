@@ -10,22 +10,16 @@ import 'package:path_provider/path_provider.dart';
 
 class Microphone {
   final Frame frame;
-  final Logger logger = Logger('Microphone');
+  final Logger logger = Logger('Frame');
   late Uint8List _audioBuffer = Uint8List(0);
   int _bitDepth = 16;
   int _sampleRate = 8000;
-  double _silenceThreshold = 0.02;
+  double silenceThreshold = 0.02;
   final Completer<void> _audioFinishedCompleter = Completer<void>();
   double _lastSoundTime = 0;
   double _noiseFloor = 0;
 
   Microphone(this.frame);
-
-  double get silenceThreshold => _silenceThreshold;
-
-  set silenceThreshold(double value) {
-    _silenceThreshold = value;
-  }
 
   int get bitDepth => _bitDepth;
 
@@ -46,8 +40,8 @@ class Microphone {
   }
 
   Future<Uint8List> recordAudio({
-    int? silenceCutoffLengthInSeconds = 3,
-    int maxLengthInSeconds = 30,
+    Duration silenceCutoffLength = const Duration(seconds: 3),
+    Duration maxLength = const Duration(seconds: 30),
   }) async {
     await frame.runLua('frame.microphone.stop()', checked: false);
 
@@ -66,15 +60,16 @@ class Microphone {
     bool didTimeout = false;
 
     await _audioFinishedCompleter.future.timeout(
-      Duration(seconds: maxLengthInSeconds),
+      maxLength,
       onTimeout: () {
         didTimeout = true;
       },
     );
     subscription.cancel();
-    
+
     if (!didTimeout) {
-      final trimLength = (silenceCutoffLengthInSeconds! - 0.5) * _sampleRate;
+      final trimLength =
+          (silenceCutoffLength.inMilliseconds - 500) * _sampleRate ~/ 1000;
       if (_audioBuffer.length > trimLength) {
         _audioBuffer =
             _audioBuffer.sublist(0, _audioBuffer.length - trimLength.toInt());
@@ -90,12 +85,12 @@ class Microphone {
 
   Future<double> saveAudioFile(
     String filename, {
-    int silenceCutoffLengthInSeconds = 3,
-    int maxLengthInSeconds = 30,
+    Duration silenceCutoffLength = const Duration(seconds: 3),
+    Duration maxLength = const Duration(seconds: 30),
   }) async {
     final audioData = await recordAudio(
-      silenceCutoffLengthInSeconds: silenceCutoffLengthInSeconds,
-      maxLengthInSeconds: maxLengthInSeconds,
+      silenceCutoffLength: silenceCutoffLength,
+      maxLength: maxLength,
     );
 
     if (audioData.isEmpty) {
@@ -123,12 +118,12 @@ class Microphone {
 
     _noiseFloor += (normalizedDelta - _noiseFloor) * 0.1;
 
-    if (normalizedDelta - _noiseFloor > _silenceThreshold) {
+    if (normalizedDelta - _noiseFloor > silenceThreshold) {
       _lastSoundTime = DateTime.now().millisecondsSinceEpoch / 1000;
       logger.info('+');
     } else {
       if (DateTime.now().millisecondsSinceEpoch / 1000 - _lastSoundTime >
-          _silenceThreshold) {
+          silenceThreshold) {
         _audioFinishedCompleter.complete();
       } else {
         logger.info('-');

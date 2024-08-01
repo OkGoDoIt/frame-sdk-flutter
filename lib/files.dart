@@ -19,17 +19,17 @@ class Files {
 
   Future<void> _writeFileRawBytes(String path, Uint8List data,
       {bool checked = false}) async {
-    final String? openResponse = await frame.runLua(
+    final String? openResponse = await frame.bluetooth.sendString(
       'w=frame.file.open("$path","write")${checked ? ';print("o")' : ''}',
-      awaitPrint: checked,
+      awaitResponse: checked,
     );
     if (checked && openResponse != "o") {
       throw Exception('Couldn\'t open file "$path" for writing: $openResponse');
     }
 
-    final String? callbackResponse = await frame.runLua(
+    final String? callbackResponse = await frame.bluetooth.sendString(
       'frame.bluetooth.receive_callback((function(d)w:write(d)end))${checked ? ';print("c")' : ''}',
-      awaitPrint: checked,
+      awaitResponse: checked,
     );
     if (checked && callbackResponse != "c") {
       throw Exception(
@@ -59,15 +59,17 @@ class Files {
       }
     }
 
-    final String? closeResponse =
-        await frame.runLua('w:close();print("c")', awaitPrint: checked);
+    final String? closeResponse = await frame.bluetooth.sendString(
+      'w:close();print("c")',
+      awaitResponse: checked,
+    );
     if (checked && closeResponse != "c") {
       throw Exception("Error closing file");
     }
 
-    final String? removeCallbackResponse = await frame.runLua(
+    final String? removeCallbackResponse = await frame.bluetooth.sendString(
       'frame.bluetooth.receive_callback(nil)${checked ? ';print("c")' : ''}',
-      awaitPrint: checked,
+      awaitResponse: checked,
     );
     if (checked && removeCallbackResponse != "c") {
       throw Exception('Couldn\'t remove callback for writing to file "$path"');
@@ -75,23 +77,23 @@ class Files {
   }
 
   Future<bool> fileExists(String path) async {
-    final String? response = await frame.runLua(
+    final String? response = await frame.bluetooth.sendString(
       'r=frame.file.open("$path","read");print("o");r:close()',
-      awaitPrint: true,
+      awaitResponse: true,
     );
     return response == "o";
   }
 
   Future<bool> deleteFile(String path) async {
-    final String? response = await frame.runLua(
+    final String? response = await frame.bluetooth.sendString(
       'frame.file.remove("$path");print("d")',
-      awaitPrint: true,
+      awaitResponse: true,
     );
     return response == "d";
   }
 
   Future<Uint8List> readFile(String path) async {
-    await frame.runLua('printCompleteFile("$path")');
+    await frame.bluetooth.sendString('printCompleteFile("$path")');
     final Uint8List result = await frame.bluetooth.waitForData();
     // remove trailing newline if there is one
     return result.isNotEmpty

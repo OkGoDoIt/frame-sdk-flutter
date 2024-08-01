@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui';
 import 'frame_sdk.dart';
 
 enum Alignment2D {
@@ -23,7 +24,7 @@ enum Alignment {
   trailing,
 }
 
-enum Colors {
+enum PaletteColors {
   voidBlack(0, "VOID"),
   white(1, "WHITE"),
   gray(2, "GRAY"),
@@ -41,9 +42,16 @@ enum Colors {
   skyBlue(14, "SKYBLUE"),
   cloudBlue(15, "CLOUDBLUE");
 
-  const Colors(this.paletteIndex, this.name);
+  const PaletteColors(this.paletteIndex, this.name);
   final int paletteIndex;
   final String name;
+  static PaletteColors fromIndex(int index) {
+    return PaletteColors.values.firstWhere(
+      (color) => color.paletteIndex == index,
+      orElse: () => throw ArgumentError('No PaletteColor found for index $index'),
+    );
+  }
+  PaletteColors operator +(int value) => fromIndex(value);
 }
 
 class Display {
@@ -60,6 +68,25 @@ class Display {
     }
     _lineHeight = value;
   }
+
+  static final Map<PaletteColors, Color> colorPaletteMapping = {
+    PaletteColors.voidBlack: const Color.fromARGB(255, 0, 0, 0),
+    PaletteColors.white: const Color.fromARGB(255, 255, 255, 255),
+    PaletteColors.gray: const Color.fromARGB(255, 157, 157, 157),
+    PaletteColors.red: const Color.fromARGB(255, 190, 38, 51),
+    PaletteColors.pink: const Color.fromARGB(255, 224, 111, 139),
+    PaletteColors.darkBrown: const Color.fromARGB(255, 73, 60, 43),
+    PaletteColors.brown: const Color.fromARGB(255, 164, 100, 34),
+    PaletteColors.orange: const Color.fromARGB(255, 235, 137, 49),
+    PaletteColors.yellow: const Color.fromARGB(255, 247, 226, 107),
+    PaletteColors.darkGreen: const Color.fromARGB(255, 47, 72, 78),
+    PaletteColors.green: const Color.fromARGB(255, 68, 137, 26),
+    PaletteColors.lightGreen: const Color.fromARGB(255, 163, 206, 39),
+    PaletteColors.nightBlue: const Color.fromARGB(255, 27, 38, 50),
+    PaletteColors.seaBlue: const Color.fromARGB(255, 0, 87, 132),
+    PaletteColors.skyBlue: const Color.fromARGB(255, 49, 162, 242),
+    PaletteColors.cloudBlue: const Color.fromARGB(255, 178, 220, 239),
+  };
 
   static const Map<int, int> _charWidthMapping = {
     0x000020: 13,
@@ -273,6 +300,7 @@ class Display {
     int? maxWidth = 640,
     int? maxHeight,
     Alignment2D align = Alignment2D.topLeft,
+    PaletteColors? color
   }) async {
     await writeText(
       text,
@@ -280,6 +308,7 @@ class Display {
       y: y,
       maxWidth: maxWidth,
       maxHeight: maxHeight,
+      color: color,
       align: align,
     );
     await show();
@@ -291,6 +320,7 @@ class Display {
     int y = 1,
     int? maxWidth = 640,
     int? maxHeight,
+    PaletteColors? color,
     Alignment2D align = Alignment2D.topLeft,
   }) async {
     if (maxWidth != null) {
@@ -313,7 +343,7 @@ class Display {
         thisLineX = x + (maxWidth ?? (640 - x)) - getTextWidth(line);
       }
       await frame.runLua(
-        'frame.display.text("${frame.escapeLuaString(line)}",$thisLineX,${y + verticalOffset})',
+        'frame.display.text("${frame.escapeLuaString(line)}",$thisLineX,${y + verticalOffset},{spacing=$charSpacing${color != null ? ',color="${color.name}"' : ''}',
         checked: true,
       );
       y += lineHeight;
@@ -327,6 +357,8 @@ class Display {
     String text, {
     int linesPerFrame = 5,
     double delay = 0.12,
+    PaletteColors? textColor,
+    PaletteColors? backgroundColor
   }) async {
     text = wrapText(text, 640);
     final totalHeight = getTextHeight(text);
@@ -334,8 +366,10 @@ class Display {
       await writeText(text);
       return;
     }
+    String textColorName = textColor?.name ?? PaletteColors.white.name;
+    String backgroundColorIndex = backgroundColor?.paletteIndex.toString() ?? "nil";
     await frame.runLua(
-      'scrollText("${frame.escapeLuaString(text)}",$lineHeight,$totalHeight,$linesPerFrame,$delay)',
+      'scrollText("${frame.escapeLuaString(text)}",$lineHeight,$totalHeight,$linesPerFrame,$delay,"$textColorName",$backgroundColorIndex,$charSpacing)',
       checked: true,
       timeout: Duration(
         seconds: (totalHeight / linesPerFrame * (delay + 0.1) + 5).toInt(),
@@ -392,15 +426,12 @@ class Display {
     await show();
   }
 
-  Future<void> setPalette(int index, int red, int green, int blue) async {
-    if (index < 0 || index > 15) {
-      throw ArgumentError("Index out of range, must be between 0 and 15");
-    }
-    throw UnimplementedError(
-        "assign_color is not yet working in the Frame firmware");
+  Future<void> setPalette(PaletteColors paletteIndex, Color newColor) async {
+    colorPaletteMapping[paletteIndex] = newColor;
+    await frame.runLua("frame.display.assign_color(${paletteIndex.name},${newColor.red},${newColor.green},${newColor.blue})", checked: true);
   }
 
-  Future<void> drawRect(int x, int y, int w, int h, {Colors color = Colors.white}) async {
+  Future<void> drawRect(int x, int y, int w, int h, {PaletteColors color = PaletteColors.white}) async {
     w = (w ~/ 8) * 8;
     await frame.runLua(
       'frame.display.bitmap($x,$y,$w,2,${color.paletteIndex},string.rep("\\xFF",${(w ~/ 8) * h}))',
@@ -413,8 +444,8 @@ class Display {
     int w,
     int h,
     int borderWidth,
-    Colors borderColor,
-    Colors fillColor,
+    PaletteColors borderColor,
+    PaletteColors fillColor,
   ) async {
     w = (w ~/ 8) * 8;
     if (borderWidth > 0) {
