@@ -1,15 +1,16 @@
-# frame_sdk
+# Frame SDK for Flutter
+The Flutter SDK for the Frame AI glasses from [Brilliant Labs](https://github.com/brilliantlabsAR).
 
-A new Flutter plugin project.
+## Status
 
-## Getting Started
+This is a very rough work in progress.  It is not yet ready for use.
 
-This project is a starting point for a Flutter
-[plug-in package](https://flutter.dev/developing-packages/),
-a specialized package that includes platform-specific implementation code for
-Android and/or iOS.
+## Install
 
-For help getting started with Flutter development, view the
-[online documentation](https://flutter.dev/docs), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+```sh
+flutter pub add frame_sdk
+```
 
+## Documentation
+
+Check out [the docs](https://docs.brilliant.xyz/frame/building-apps/) for complete guidance on everything you can do with the Frame.
