@@ -1,4 +1,6 @@
-const String libraryFunctions = '''
+import 'bluetooth.dart';
+
+final String libraryFunctions = '''
 function prntLng(stringToPrint)
 	local mtu = frame.bluetooth.max_length()
 	local len = string.len(stringToPrint)
@@ -14,11 +16,11 @@ function prntLng(stringToPrint)
 			j = len
 		end
 		local chunk = string.sub(stringToPrint, i, j)
-		print("\\010"..chunk)
+		print("\\${FrameDataTypePrefixes.longText.valueAsHex}"..chunk)
 		chunkIndex = chunkIndex + 1
 		i = j + 1
 	end
-	print("\\011"..chunkIndex)
+	print("\\${FrameDataTypePrefixes.longTextEnd.valueAsHex}"..chunkIndex)
 end
 function sendPartial(dataToSend, max_size)
 	local len = string.len(dataToSend)
@@ -31,7 +33,7 @@ function sendPartial(dataToSend, max_size)
 		end
 		local chunk = string.sub(dataToSend, i, j)
 		while true do
-			if pcall(frame.bluetooth.send, '\\001' .. chunk) then
+			if pcall(frame.bluetooth.send, '\\${FrameDataTypePrefixes.longData.valueAsHex}' .. chunk) then
 				break
 			end
 		end
@@ -65,14 +67,14 @@ function printCompleteFile(filename)
 			chunkIndex = chunkIndex + 1
 			chunk = string.sub(chunk, mtu - 3)
 			while true do
-				if pcall(frame.bluetooth.send, '\\001' .. chunk_to_send) then
+				if pcall(frame.bluetooth.send, '\\${FrameDataTypePrefixes.longData.valueAsHex}' .. chunk_to_send) then
 					break
 				end
 			end
 		end
 	end
 	while true do
-		if pcall(frame.bluetooth.send, '\\002' .. chunkIndex) then
+		if pcall(frame.bluetooth.send, '\\${FrameDataTypePrefixes.longDataEnd.valueAsHex}' .. chunkIndex) then
 			break
 		end
 	end
@@ -110,7 +112,7 @@ function cameraCaptureAndSend(quality,autoExpTimeDelay,autofocusType)
                 state = 'DONE'
             else
                 while true do
-                    if pcall(frame.bluetooth.send, '\\001' .. i) then
+                    if pcall(frame.bluetooth.send, '\\${FrameDataTypePrefixes.longData.valueAsHex}' .. i) then
                         break
                     end
                 end
@@ -118,7 +120,7 @@ function cameraCaptureAndSend(quality,autoExpTimeDelay,autofocusType)
             end
         elseif state == 'DONE' then
             while true do
-                if pcall(frame.bluetooth.send, '\\002' .. chunkIndex) then
+                if pcall(frame.bluetooth.send, '\\${FrameDataTypePrefixes.longDataEnd.valueAsHex}' .. chunkIndex) then
                     break
                 end
             end
@@ -129,7 +131,6 @@ end
 function drawRect(x,y,width,height,color)
 	frame.display.bitmap(x,y,width,2,color,string.rep("\\xFF",math.floor(width/8*height)))
 end
-
 function scrollText(text, line_height, total_height, lines_per_frame, delay)
     local lines = {}
     local line_count = 1
@@ -172,7 +173,6 @@ function scrollText(text, line_height, total_height, lines_per_frame, delay)
     while frame.time.utc() < extra_time do
     end
 end
-
 function microphoneRecordAndSend(sample_rate, bit_depth, max_time_in_seconds)
     frame.microphone.start{sample_rate=sample_rate, bit_depth=bit_depth}
     local end_time = frame.time.utc() + 60 * 60 * 24
@@ -194,11 +194,11 @@ function microphoneRecordAndSend(sample_rate, bit_depth, max_time_in_seconds)
         if s ~= '' then
             while true do
                 if max_time_in_seconds ~= nil then
-                    if pcall(frame.bluetooth.send, '\\001' .. s) then
+                    if pcall(frame.bluetooth.send, '\\${FrameDataTypePrefixes.longData.valueAsHex}' .. s) then
                         break
                     end
                 else
-                    if pcall(frame.bluetooth.send, '\\005' .. s) then
+                    if pcall(frame.bluetooth.send, '\\${FrameDataTypePrefixes.micData.valueAsHex}' .. s) then
                         break
                     end
                 end
@@ -207,7 +207,7 @@ function microphoneRecordAndSend(sample_rate, bit_depth, max_time_in_seconds)
         end
     end
     if max_time_in_seconds ~= nil then
-        frame.bluetooth.send('\\002' .. tostring(chunk_count))
+        frame.bluetooth.send('\\${FrameDataTypePrefixes.longDataEnd.valueAsHex}' .. tostring(chunk_count))
     end
     frame.microphone.stop()
 end

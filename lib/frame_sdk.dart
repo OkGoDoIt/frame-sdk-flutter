@@ -12,6 +12,7 @@ import 'files.dart';
 import 'microphone.dart';
 import 'camera.dart';
 import 'display.dart';
+import 'motion.dart';
 
 class Frame {
   final Logger logger = Logger('Frame');
@@ -22,12 +23,14 @@ class Frame {
   late final Microphone microphone;
   late final Camera camera;
   late final Display display;
+  late final Motion motion;
 
   Frame() {
     files = Files(this);
     microphone = Microphone(this);
     camera = Camera(this);
     display = Display(this);
+    motion = Motion(this);
   }
 
   BrilliantDevice get bluetooth {
@@ -116,9 +119,8 @@ class Frame {
     final randomName = String.fromCharCodes(
         List.generate(4, (_) => Random().nextInt(26) + 97));
 
-    // TODO: enable this once files are implemented
-    //await files.writeFile("/$randomName.lua", utf8.encode(string),
-    //    checked: true);
+    await files.writeFile("/$randomName.lua", utf8.encode(string),
+        checked: true);
     String? response;
     if (awaitPrint) {
       response = await bluetooth.sendString("require(\"$randomName\")",
@@ -135,8 +137,8 @@ class Frame {
     } else {
       response = await bluetooth.sendString("require(\"$randomName\")");
     }
-    // TODO: enable this once files are implemented
-    //await files.deleteFile("/$randomName.lua");
+
+    await files.deleteFile("/$randomName.lua");
     return response;
   }
 
@@ -158,7 +160,16 @@ class Frame {
     if (deep) {
       await bluetooth.sendString("frame.sleep()");
     } else {
-      // TODO: impliment this after camera and motion are implimented
+      if (_luaOnWake != null || _callbackOnWake != null) {
+        String runOnWake = _luaOnWake ?? "";
+        if (_callbackOnWake != null) {
+          runOnWake = "frame.bluetooth.send('\\x${FrameDataTypePrefixes.wake.valueAsHex}');$runOnWake";
+        }
+        runOnWake = "if not is_awake then;is_awake=true;$runOnWake;end";
+        motion.runOnTap(luaScript: runOnWake);
+      }
+      await runLua("frame.display.text(' ',1,1);frame.display.show();frame.camera.sleep()", checked: true);
+      camera.isAwake = false;
     }
   }
 

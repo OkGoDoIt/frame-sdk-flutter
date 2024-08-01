@@ -57,7 +57,7 @@ class BrilliantDevice {
   Duration defaultTimeout;
   bool logDebugging;
 
-  final int _maxReceiveBuffer = 10 * 1024 * 1024;
+  int maxReceiveBuffer = 10 * 1024 * 1024;
 
   BluetoothCharacteristic? _txChannel;
   BluetoothCharacteristic? _rxChannel;
@@ -124,11 +124,11 @@ class BrilliantDevice {
           _log.info(
               "Received long text chunk #$ongoingPrintResponseChunkCount: ${utf8.decode(event.value.sublist(1))}");
         }
-        if (ongoingPrintResponse.length > _maxReceiveBuffer) {
+        if (ongoingPrintResponse.length > maxReceiveBuffer) {
           _log.severe(
-              "Buffered received long printed string is more than $_maxReceiveBuffer bytes: ${ongoingPrintResponse.length} bytes received");
+              "Buffered received long printed string is more than $maxReceiveBuffer bytes: ${ongoingPrintResponse.length} bytes received");
           throw BrilliantBluetoothException(
-              "Buffered received long printed string is more than $_maxReceiveBuffer bytes: ${ongoingPrintResponse.length} bytes received");
+              "Buffered received long printed string is more than $maxReceiveBuffer bytes: ${ongoingPrintResponse.length} bytes received");
         }
       } else if (event.value[0] == FrameDataTypePrefixes.longTextEnd.value) {
         final totalExpectedChunkCount =
@@ -179,11 +179,11 @@ class BrilliantDevice {
           _log.info(
               "Received long data chunk #$ongoingDataResponseChunkCount: ${event.value.sublist(2).length} bytes");
         }
-        if (ongoingDataResponse.length > _maxReceiveBuffer) {
+        if (ongoingDataResponse.length > maxReceiveBuffer) {
           _log.severe(
-              "Buffered received long data is more than $_maxReceiveBuffer bytes: ${ongoingDataResponse.length} bytes received");
+              "Buffered received long data is more than $maxReceiveBuffer bytes: ${ongoingDataResponse.length} bytes received");
           throw BrilliantBluetoothException(
-              "Buffered received long data is more than $_maxReceiveBuffer bytes: ${ongoingDataResponse.length} bytes received");
+              "Buffered received long data is more than $maxReceiveBuffer bytes: ${ongoingDataResponse.length} bytes received");
         }
       } else if (event.value[0] == _frameDataPrefix &&
           event.value[1] == FrameDataTypePrefixes.longDataEnd.value) {
