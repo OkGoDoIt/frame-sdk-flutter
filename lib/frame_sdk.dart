@@ -255,7 +255,7 @@ class Frame {
           checked: true);
     } else if (luaScript != null && callback == null) {
       await files.writeFile(
-          "main.lua", utf8.encode("is_awake=true;" + luaScript),
+          "main.lua", utf8.encode("is_awake=true;$luaScript"),
           checked: true);
     } else {
       await files.writeFile("main.lua", utf8.encode("is_awake=true"),

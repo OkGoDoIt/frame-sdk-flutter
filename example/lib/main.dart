@@ -23,7 +23,7 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   String _platformVersion = 'Unknown';
   final _frameSdkPlugin = Frame();
-  List<String> _logMessages = [];
+  final List<String> _logMessages = [];
   late final Frame frame;
 
   @override
