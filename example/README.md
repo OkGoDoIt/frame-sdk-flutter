@@ -1,16 +1,16 @@
-# frame_sdk_example
+# Frame SDK for Flutter
+The Flutter SDK for the Frame AI glasses from [Brilliant Labs](https://github.com/brilliantlabsAR).
 
-Demonstrates how to use the frame_sdk plugin.
+## Status
 
-## Getting Started
+This is a very rough work in progress.  There may be errors or instability.
 
-This project is a starting point for a Flutter application.
+## Install
 
-A few resources to get you started if this is your first Flutter project:
+```sh
+flutter pub add frame_sdk
+```
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+## Documentation
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+Check out [the docs](https://docs.brilliant.xyz/frame/building-apps/) for complete guidance on everything you can do with the Frame.

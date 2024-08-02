@@ -1,9 +1,9 @@
 # Frame SDK for Flutter
-The Flutter SDK for the Frame AI glasses from [Brilliant Labs](https://github.com/brilliantlabsAR).
+The Flutter SDK for the Frame AI glasses from [Brilliant Labs](https://github.com/brilliantlabsAR).  You can install [`frame_sdk` via pub.dev](https://pub.dev/packages/frame_sdk).
 
 ## Status
 
-This is a very rough work in progress.  It is not yet ready for use.
+This is a very rough work in progress.  There may be errors or instability.
 
 ## Install
 

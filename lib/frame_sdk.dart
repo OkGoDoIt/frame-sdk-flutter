@@ -26,7 +26,7 @@ class Frame {
   late final Motion motion;
   int timesToRetry = 1;
   int? _retryCount;
-  DateTime _lastTimeSync = DateTime.now();
+  // DateTime _lastTimeSync = DateTime.now();
 
   Frame() {
     files = Files(this);
@@ -91,7 +91,7 @@ class Frame {
     await runLua(
         "frame.time.utc($utcUnixEpochTime);frame.time.zone('$timeZoneOffset')",
         checked: checked, withoutHelpers: true);
-    _lastTimeSync = DateTime.now();
+    //_lastTimeSync = DateTime.now();
   }
 
   Future<void> disconnect() async {
