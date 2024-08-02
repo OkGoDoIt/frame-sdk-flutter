@@ -1,3 +1,7 @@
+## 0.0.2
+
+* Fixed metadata
+
 ## 0.0.1
 
 * Work in progress, but mostly working

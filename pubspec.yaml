@@ -1,6 +1,6 @@
 name: frame_sdk
-description: "The Python SDK for the Frame from Brilliant Labs"
-version: 0.0.1
+description: "The Flutter SDK for the Frame from Brilliant Labs"
+version: 0.0.2
 homepage: 'https://github.com/OkGoDoIt/frame-sdk-flutter'
 
 environment:

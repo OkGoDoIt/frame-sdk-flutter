@@ -4,14 +4,14 @@
 #
 Pod::Spec.new do |s|
   s.name             = 'frame_sdk'
-  s.version          = '0.0.1'
-  s.summary          = 'A new Flutter plugin project.'
+  s.version          = '0.0.2'
+  s.summary          = 'The Flutter SDK for the Frame from Brilliant Labs'
   s.description      = <<-DESC
-A new Flutter plugin project.
-                       DESC
-  s.homepage         = 'http://example.com'
+The Flutter SDK for the Frame from Brilliant Labs
+DESC
+  s.homepage         = 'https://github.com/OkGoDoIt/frame-sdk-flutter'
   s.license          = { :file => '../LICENSE' }
-  s.author           = { 'Your Company' => 'email@example.com' }
+  s.author           = { 'Roger Pincombe' => 'email@example.com' }
   s.source           = { :path => '.' }
   s.source_files = 'Classes/**/*'
   s.dependency 'Flutter'
