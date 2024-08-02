@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'dart:async';
 
@@ -119,13 +118,13 @@ class _MyAppState extends State<MyApp> {
     await frame.display.showText(
         "Recorded ${length.toStringAsFixed(1)} seconds",
         align: Alignment2D.middleCenter);
-    await Future.delayed(Duration(seconds: 3));
+    await Future.delayed(const Duration(seconds: 3));
 
     // Record audio to memory
     await frame.display
         .showText("Say something else...", align: Alignment2D.middleCenter);
     Uint8List audioData =
-        await frame.microphone.recordAudio(maxLength: Duration(seconds: 10));
+        await frame.microphone.recordAudio(maxLength: const Duration(seconds: 10));
     await frame.display.showText(
         "Recorded ${(audioData.length / frame.microphone.sampleRate.toDouble()).toStringAsFixed(1)} seconds of audio",
         align: Alignment2D.middleCenter);
@@ -137,7 +136,7 @@ class _MyAppState extends State<MyApp> {
     double intensityOfMotion = 0;
     Direction prevDirection = await frame.motion.getDirection();
     for (int i = 0; i < 10; i++) {
-      await Future.delayed(Duration(milliseconds: 100));
+      await Future.delayed(const Duration(milliseconds: 100));
       Direction direction = await frame.motion.getDirection();
       intensityOfMotion =
           max(intensityOfMotion, (direction - prevDirection).amplitude());
@@ -342,8 +341,7 @@ class _MyAppState extends State<MyApp> {
 
     var msg = "hello world! " * 32;
     await frame.runLua(
-        "msg = \"hello world! \";" +
-            List.generate(5, (i) => "msg = msg .. msg;").join(""),
+        "msg = \"hello world! \";${List.generate(5, (i) => "msg = msg .. msg;").join("")}",
         checked: true);
     assertEqual("Long receive lua message", msg, await frame.evaluate("msg"));
 
@@ -354,20 +352,16 @@ class _MyAppState extends State<MyApp> {
     // Test long send and receive
     int aCount = 2;
     String message = List.generate(aCount, (i) => "and $i, ").join();
-    String script = "message = '';" +
-        List.generate(aCount, (i) => "message = message .. 'and $i, '; ")
-            .join() +
-        "print(message)";
+    String script = "message = '';${List.generate(aCount, (i) => "message = message .. 'and $i, '; ")
+            .join()}print(message)";
     assertEqual("Long send and receive lua (a=2)", message,
         await frame.runLua(script, awaitPrint: true));
 
     // Test longer send and receive
     aCount = 50;
     message = List.generate(aCount, (i) => "and $i, ").join();
-    script = "message = '';" +
-        List.generate(aCount, (i) => "message = message .. 'and $i, '; ")
-            .join() +
-        "print(message)";
+    script = "message = '';${List.generate(aCount, (i) => "message = message .. 'and $i, '; ")
+            .join()}print(message)";
     assertEqual("Longer send and receive lua (a=50)", message,
         await frame.runLua(script, awaitPrint: true));
 
@@ -388,10 +382,7 @@ class _MyAppState extends State<MyApp> {
 
     // Test Files
 
-    var content = "Testing:\n" +
-        ("test1... " * 200) +
-        "\nTesting 2:\n" +
-        ("test2\n" * 100);
+    var content = "Testing:\n${"test1... " * 200}\nTesting 2:\n${"test2\n" * 100}";
     await frame.files
         .writeFile("test.txt", utf8.encode(content), checked: true);
     var actualContent = await frame.files.readFile("test.txt");
@@ -794,7 +785,7 @@ class _MyAppState extends State<MyApp> {
   }
 
   void assertEqualLists(String message, List expected, List actual) {
-    final listEquality = ListEquality();
+    const listEquality = ListEquality();
     if (listEquality.equals(expected, actual)) {
       _addLogMessage('✅ Test passed: $message');
     } else {
@@ -846,7 +837,7 @@ class _MyAppState extends State<MyApp> {
         if (_scrollController.hasClients) {
           _scrollController.animateTo(
             _scrollController.position.maxScrollExtent,
-            duration: Duration(milliseconds: 300),
+            duration: const Duration(milliseconds: 300),
             curve: Curves.easeOut,
           );
         }

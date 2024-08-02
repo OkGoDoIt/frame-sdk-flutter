@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:typed_data';
-import 'package:frame_sdk/bluetooth.dart';
 import 'package:logging/logging.dart';
 
 import 'frame_sdk.dart';

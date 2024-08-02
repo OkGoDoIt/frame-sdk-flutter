@@ -70,7 +70,7 @@ class Microphone {
     subscription.cancel();
     await frame.bluetooth.sendBreakSignal();
     await frame.runLua('frame.microphone.stop()');
-    await Future.delayed(Duration(milliseconds: 100));
+    await Future.delayed(const Duration(milliseconds: 100));
     await frame.runLua('frame.microphone.stop()');
 
     if (_audioBuffer == null || _audioBuffer!.isEmpty) {
