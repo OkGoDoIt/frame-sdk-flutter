@@ -1,5 +1,7 @@
 import 'dart:io';
 import 'dart:typed_data';
+import 'package:frame_sdk/bluetooth.dart';
+
 import 'frame_sdk.dart';
 import 'package:image/image.dart';
 
@@ -18,8 +20,8 @@ enum AutoFocusType {
   centerWeighted("CENTER_WEIGHTED", 2),
   spot("SPOT", 3);
 
-  const AutoFocusType(this.value, this.exifValue);
-  final String value;
+  const AutoFocusType(this.name, this.exifValue);
+  final String name;
   final int exifValue;
 }
 
@@ -41,10 +43,11 @@ class Camera {
       await Future.delayed(const Duration(milliseconds: 500));
       isAwake = true;
     }
-    
-    final response = frame.bluetooth.waitForData();
+
+    final response =
+        frame.bluetooth.waitForDataOfType(FrameDataTypePrefixes.photoData);
     await frame.runLua(
-        "cameraCaptureAndSend($quality,${autofocusSeconds ?? 'nil'},$autofocusType)");
+        "cameraCaptureAndSend(${quality.value},${autofocusSeconds ?? 'nil'},'${autofocusType.name}')");
     final imageBuffer = await response;
 
     if (imageBuffer.isEmpty) {
@@ -80,7 +83,7 @@ class Camera {
     exif.exifIfd.model = "Frame";
     exif.exifIfd.software = "Frame Dart SDK";
     if (autofocusType != null) {
-      exif.exifIfd.data[0x9207] = IfdValueShort(autofocusType.exifValue);
+      exif.imageIfd.data[0x9207] = IfdValueShort(autofocusType.exifValue);
     }
 
     exif.imageIfd.data[0x9003] =

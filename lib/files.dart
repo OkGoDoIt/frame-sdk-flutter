@@ -1,9 +1,13 @@
 import 'dart:convert';
 import 'dart:typed_data';
+import 'package:frame_sdk/bluetooth.dart';
+import 'package:logging/logging.dart';
+
 import 'frame_sdk.dart';
 
 class Files {
   final Frame frame;
+  final logger = Logger('Files');
 
   Files(this.frame);
 
@@ -19,61 +23,53 @@ class Files {
 
   Future<void> _writeFileRawBytes(String path, Uint8List data,
       {bool checked = false}) async {
-    final String? openResponse = await frame.bluetooth.sendString(
-      'w=frame.file.open("$path","write")${checked ? ';print("o")' : ''}',
-      awaitResponse: checked,
+    await frame.runLua(
+      'w=frame.file.open("$path","write")',
+      checked: checked,
+      withoutHelpers: true,
     );
-    if (checked && openResponse != "o") {
-      throw Exception('Couldn\'t open file "$path" for writing: $openResponse');
-    }
 
-    final String? callbackResponse = await frame.bluetooth.sendString(
-      'frame.bluetooth.receive_callback((function(d)w:write(d)end))${checked ? ';print("c")' : ''}',
-      awaitResponse: checked,
+    await frame.runLua(
+      'frame.bluetooth.receive_callback((function(d)w:write(d)end))',
+      checked: checked,
+      withoutHelpers: true,
     );
-    if (checked && callbackResponse != "c") {
-      throw Exception(
-          'Couldn\'t register callback for writing to file "$path": $callbackResponse');
-    }
 
     int currentIndex = 0;
     while (currentIndex < data.length) {
-      final int maxPayload = (frame.bluetooth.maxDataLength ?? 0) - 1;
+      final int maxPayload = (frame.bluetooth.maxDataLength ?? 0) - 2;
       final int nextChunkLength = data.length - currentIndex > maxPayload
           ? maxPayload
           : data.length - currentIndex;
       if (nextChunkLength == 0) break;
 
       if (nextChunkLength <= 0) {
+        logger.warning(
+            "MTU too small to write file, or escape character at end of chunk");
         throw Exception(
             "MTU too small to write file, or escape character at end of chunk");
       }
 
-      final Uint8List chunk =
-          data.sublist(currentIndex, currentIndex + nextChunkLength);
-      await frame.bluetooth.sendData(chunk);
+      await frame.bluetooth
+          .sendData(data.sublist(currentIndex, currentIndex + nextChunkLength));
 
       currentIndex += nextChunkLength;
       if (currentIndex < data.length) {
-        await Future.delayed(const Duration(milliseconds: 100));
+        await Future.delayed(const Duration(milliseconds: 150));
       }
     }
 
-    final String? closeResponse = await frame.bluetooth.sendString(
-      'w:close();print("c")',
-      awaitResponse: checked,
+    await frame.runLua(
+      'w:close()',
+      checked: checked,
+      withoutHelpers: true,
     );
-    if (checked && closeResponse != "c") {
-      throw Exception("Error closing file");
-    }
 
-    final String? removeCallbackResponse = await frame.bluetooth.sendString(
-      'frame.bluetooth.receive_callback(nil)${checked ? ';print("c")' : ''}',
-      awaitResponse: checked,
+    await frame.runLua(
+      'frame.bluetooth.receive_callback(nil)',
+      checked: checked,
+      withoutHelpers: true,
     );
-    if (checked && removeCallbackResponse != "c") {
-      throw Exception('Couldn\'t remove callback for writing to file "$path"');
-    }
   }
 
   Future<bool> fileExists(String path) async {
@@ -93,11 +89,13 @@ class Files {
   }
 
   Future<Uint8List> readFile(String path) async {
-    await frame.bluetooth.sendString('printCompleteFile("$path")');
+    frame.bluetooth.sendString('printCompleteFile("$path")');
     final Uint8List result = await frame.bluetooth.waitForData();
-    // remove trailing newline if there is one
-    return result.isNotEmpty
-        ? result.sublist(0, result.length - (result.last == 10 ? 1 : 0))
-        : result;
+    // remove any trailing newlines if there are any
+    final lengthToRemove = result.lastIndexOf(10);
+    if (lengthToRemove != -1) {
+      return result.sublist(0, lengthToRemove);
+    }
+    return result;
   }
 }

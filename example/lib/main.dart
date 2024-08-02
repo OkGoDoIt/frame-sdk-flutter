@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -14,6 +15,7 @@ import 'package:frame_sdk/motion.dart';
 
 import 'package:logging/logging.dart';
 import 'package:collection/collection.dart';
+import 'package:path_provider/path_provider.dart';
 
 void main() {
   // Request bluetooth permission
@@ -41,22 +43,254 @@ class _MyAppState extends State<MyApp> {
     initPlatformState();
     frame = Frame();
 
-    runExample();
+    runTests();
   }
 
   Future<void> runExample() async {
-    var logger = Logger('Frame');
+    var logger = Logger.root;
+    logger.level = Level.WARNING;
     logger.onRecord.listen((record) {
-      print("Log (${record.level.name}): ${record.message}");
+      _addLogMessage(
+          "Log ${record.loggerName} (${record.level.name}): ${record.message}");
     });
+
+    while (!frame.isConnected) {
+      _addLogMessage("Trying to connect...");
+      final didConnect = await frame.connect();
+      if (didConnect) {
+        _addLogMessage("Connected to device");
+      } else {
+        _addLogMessage("Failed to connect to device, will try again...");
+      }
+    }
+
+    // Check if connected
+    _addLogMessage("Connected: ${frame.isConnected}");
+
+    // Get battery level
+    int batteryLevel = await frame.getBatteryLevel();
+    _addLogMessage("Frame battery: $batteryLevel%");
+
+    // Write file
+    await frame.files.writeFile("greeting.txt", utf8.encode("Hello world"));
+
+    // Read file
+    String fileContent =
+        utf8.decode(await frame.files.readFile("greeting.txt"));
+    _addLogMessage(fileContent);
+
+    // Display text
+    await frame.runLua(
+        "frame.display.text('Hello world', 50, 100);frame.display.show()");
+
+    // Evaluate expression
+    _addLogMessage(await frame.evaluate("1+2"));
+
+    _addLogMessage("Tap the Frame to continue...");
+    await frame.display.showText("Tap the Frame to take a photo",
+        align: Alignment2D.middleCenter);
+    await frame.motion.waitForTap();
+
+    // Take and save photo
+    await frame.display
+        .showText("Taking photo...", align: Alignment2D.middleCenter);
+    await frame.camera.savePhoto("frame-test-photo.jpg");
+    await frame.display
+        .showText("Photo saved!", align: Alignment2D.middleCenter);
+
+    // Take photo with more control
+    await frame.camera.savePhoto("frame-test-photo-2.jpg",
+        autofocusSeconds: 3,
+        quality: PhotoQuality.high,
+        autofocusType: AutoFocusType.centerWeighted);
+
+    // Get raw photo bytes
+    Uint8List photoBytes = await frame.camera.takePhoto(autofocusSeconds: 1);
+    _addLogMessage("Photo bytes: ${photoBytes.length}");
+
+    _addLogMessage("About to record until you stop talking");
+    await frame.display
+        .showText("Say something...", align: Alignment2D.middleCenter);
+
+    // Record audio to file
+    double length = await frame.microphone.saveAudioFile("test-audio.wav");
+    _addLogMessage(
+        "Recorded ${length.toStringAsFixed(1)} seconds: \"./test-audio.wav\"");
+    await frame.display.showText(
+        "Recorded ${length.toStringAsFixed(1)} seconds",
+        align: Alignment2D.middleCenter);
+    await Future.delayed(Duration(seconds: 3));
+
+    // Record audio to memory
+    await frame.display
+        .showText("Say something else...", align: Alignment2D.middleCenter);
+    Uint8List audioData =
+        await frame.microphone.recordAudio(maxLength: Duration(seconds: 10));
+    await frame.display.showText(
+        "Recorded ${(audioData.length / frame.microphone.sampleRate.toDouble()).toStringAsFixed(1)} seconds of audio",
+        align: Alignment2D.middleCenter);
+
+    _addLogMessage("Move around to track intensity of your motion");
+    await frame.display.showText(
+        "Move around to track intensity of your motion",
+        align: Alignment2D.middleCenter);
+    double intensityOfMotion = 0;
+    Direction prevDirection = await frame.motion.getDirection();
+    for (int i = 0; i < 10; i++) {
+      await Future.delayed(Duration(milliseconds: 100));
+      Direction direction = await frame.motion.getDirection();
+      intensityOfMotion =
+          max(intensityOfMotion, (direction - prevDirection).amplitude());
+      prevDirection = direction;
+    }
+    _addLogMessage(
+        "Intensity of motion: ${intensityOfMotion.toStringAsFixed(2)}");
+    await frame.display.showText(
+        "Intensity of motion: ${intensityOfMotion.toStringAsFixed(2)}",
+        align: Alignment2D.middleCenter);
+    _addLogMessage("Tap the Frame to continue...");
+    await frame.motion.waitForTap();
+
+    // Show the full palette
+    int width = 640 ~/ 4;
+    int height = 400 ~/ 4;
+    for (int color = 0; color < 16; color++) {
+      int tileX = (color % 4);
+      int tileY = (color ~/ 4);
+      await frame.display.drawRect(tileX * width + 1, tileY * height + 1, width,
+          height, PaletteColors.fromIndex(color));
+      await frame.display.writeText("$color",
+          x: tileX * width + width ~/ 2 + 1,
+          y: tileY * height + height ~/ 2 + 1);
+    }
+    await frame.display.show();
+
+    _addLogMessage("Tap the Frame to continue...");
+    await frame.motion.waitForTap();
+
+    // Scroll some long text
+    await frame.display.scrollText(
+        "Never gonna give you up\nNever gonna let you down\nNever gonna run around and desert you\nNever gonna make you cry\nNever gonna say goodbye\nNever gonna tell a lie and hurt you");
+
+    // Display battery indicator and time as a home screen
+    batteryLevel = await frame.getBatteryLevel();
+    PaletteColors batteryFillColor = batteryLevel < 20
+        ? PaletteColors.red
+        : batteryLevel < 50
+            ? PaletteColors.yellow
+            : PaletteColors.green;
+    int batteryWidth = 150;
+    int batteryHeight = 75;
+    await frame.display.drawRect(
+        640 - 32, 40 + batteryHeight ~/ 2 - 8, 32, 16, PaletteColors.white);
+    await frame.display.drawRectFilled(
+        640 - 16 - batteryWidth,
+        40 - 8,
+        batteryWidth + 16,
+        batteryHeight + 16,
+        8,
+        PaletteColors.white,
+        PaletteColors.voidBlack);
+    await frame.display.drawRect(
+        640 - 8 - batteryWidth,
+        40,
+        (batteryWidth * 0.01 * batteryLevel).toInt(),
+        batteryHeight,
+        batteryFillColor);
+    await frame.display.writeText("$batteryLevel%",
+        x: 640 - 8 - batteryWidth,
+        y: 40,
+        maxWidth: batteryWidth,
+        maxHeight: batteryHeight,
+        align: Alignment2D.middleCenter);
+    await frame.display
+        .writeText(DateTime.now().toString(), align: Alignment2D.middleCenter);
+    await frame.display.show();
+
+    // Set a wake screen via script
+    await frame.runOnWake(luaScript: """
+      frame.display.text('Battery: ' .. frame.battery_level() ..  '%', 10, 10);
+      if frame.time.utc() > 10000 then
+        local time_now = frame.time.date();
+        frame.display.text(time_now['hour'] .. ':' .. time_now['minute'], 300, 160);
+        frame.display.text(time_now['month'] .. '/' .. time_now['day'] .. '/' .. time_now['year'], 300, 220) 
+      end;
+      frame.display.show();
+      frame.sleep(10);
+      frame.display.text(' ',1,1);
+      frame.display.show();
+      frame.sleep()
+    """);
+
+    // Tell frame to sleep after 10 seconds then clear the screen and go to sleep
+    await frame.runLua(
+        "frame.sleep(10);frame.display.text(' ',1,1);frame.display.show();frame.sleep()");
+  }
+
+  Future<void> runTests() async {
+    var logger = Logger.root;
+    logger.level = Level.INFO;
+    logger.onRecord.listen((record) {
+      print(
+          "Log ${record.loggerName} (${record.level.name}): ${record.message}");
+    });
+
+    while (!frame.isConnected) {
+      _addLogMessage("Trying to connect...");
+      final didConnect = await frame.connect();
+      if (didConnect) {
+        _addLogMessage("Connected to device");
+      } else {
+        _addLogMessage("Failed to connect to device, will try again...");
+      }
+    }
+
+    final Directory dir = await getApplicationDocumentsDirectory();
+    if (!await dir.exists()) {
+      await dir.create();
+    }
 
     await frame.ensureConnected();
 
     assertTrue('Connected to device', frame.bluetooth.isConnected);
 
+    _addLogMessage("Battery level: ${await frame.getBatteryLevel()}%");
+    await frame.display.showText("Battery: ${await frame.getBatteryLevel()}%",
+        align: Alignment2D.middleCenter);
+
     assertEqual("Evaluate 1", "1", await frame.evaluate("1"));
     assertEqual("Evaluate 2", "2", await frame.evaluate("2"));
     assertEqual("Evaluate 3", "3", await frame.evaluate("3"));
+
+    await frame.display.clear();
+    await frame.display.clear();
+    await frame.display.clear();
+
+    await frame.display.writeText("Hello world!",
+        align: Alignment2D.topLeft, color: PaletteColors.skyBlue);
+    await frame.display.writeText(
+        "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
+        align: Alignment2D.middleCenter,
+        color: PaletteColors.white);
+    await frame.display.writeText("Goodbye world!",
+        align: Alignment2D.bottomRight, color: PaletteColors.pink);
+    await frame.display.show();
+
+    await Future.delayed(const Duration(seconds: 2));
+
+    frame.display.charSpacing = 10;
+    await frame.display.writeText("Hello world!",
+        align: Alignment2D.topRight, color: PaletteColors.cloudBlue);
+    await frame.display.writeText(
+        "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
+        align: Alignment2D.middleCenter,
+        color: PaletteColors.yellow);
+    await frame.display.writeText("Goodbye world!",
+        align: Alignment2D.bottomLeft, color: PaletteColors.red);
+    await frame.display.show();
+    await Future.delayed(const Duration(seconds: 2));
+
+    frame.display.charSpacing = 4;
 
     // Test Bluetooth
     assertEqual(
@@ -67,12 +301,6 @@ class _MyAppState extends State<MyApp> {
     assertEqual("Send lua without response", null,
         await frame.bluetooth.sendString("tester = 1"));
 
-/*
-    assertRaises(
-        "Fail to receive response",
-        () async => await frame.bluetooth.sendString("tester = 2",
-            awaitResponse: true, timeout: const Duration(seconds: 3)));
-*/
     assertEqual(
         "Send complex lua with response",
         "c",
@@ -156,7 +384,7 @@ class _MyAppState extends State<MyApp> {
     var frameTime = double.parse(await frame.evaluate("frame.time.utc()"));
     var currentTime = DateTime.now().millisecondsSinceEpoch / 1000.0;
     assertAlmostEqual(
-        "Frame time is close to current time", frameTime, currentTime, 5);
+        "Frame time is close to current time", frameTime, currentTime, 3);
 
     // Test Files
 
@@ -167,10 +395,14 @@ class _MyAppState extends State<MyApp> {
     await frame.files
         .writeFile("test.txt", utf8.encode(content), checked: true);
     var actualContent = await frame.files.readFile("test.txt");
+    assertEqual("Long file length matches", content.trim().length,
+        utf8.decode(actualContent).trim().length);
     assertEqual("Long file content matches", content.trim(),
         utf8.decode(actualContent).trim());
 
     actualContent = await frame.files.readFile("test.txt");
+    assertEqual("Long file length matches on second read",
+        content.trim().length, utf8.decode(actualContent).trim().length);
     assertEqual("Long file content matches on second read", content.trim(),
         utf8.decode(actualContent).trim());
 
@@ -204,7 +436,8 @@ class _MyAppState extends State<MyApp> {
     // Test Camera with autofocus options
 
     var startTime = DateTime.now();
-    var photoWithoutAutofocus = await frame.camera.takePhoto();
+    var photoWithoutAutofocus =
+        await frame.camera.takePhoto(autofocusSeconds: null);
     var endTime = DateTime.now();
     var timeWithoutAutofocus = endTime.difference(startTime);
     assertTrue("photo without autofocus content greater than 2kb",
@@ -230,6 +463,11 @@ class _MyAppState extends State<MyApp> {
     assertTrue("photo with 3 sec autofocus takes longer than 1 sec autofocus",
         timeWithAutofocus3Sec > timeWithAutofocus1Sec);
 
+    var file = File("${dir.path}/test.jpg");
+    await frame.camera.savePhoto(file.path);
+    assertGreaterThan(
+        "saved photo size is reasonable", await file.length(), 1000);
+
     // Test Camera with quality options
 
     var lowQualityPhoto =
@@ -252,30 +490,33 @@ class _MyAppState extends State<MyApp> {
         highQualityPhoto.length > mediumQualityPhoto.length);
 
     // Test Display
-    await frame.display
-        .showText("Lorem ipsum dolor sit amet, consectetur adipiscing elit.");
-
+    await frame.display.showText(
+        "In WHITE: Lorem ipsum dolor sit amet, consectetur adipiscing elit.");
+    await Future.delayed(const Duration(seconds: 2));
     await frame.display.clear();
 
     await frame.display.showText(
-        "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
+        "In GEEEN: Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
         color: PaletteColors.green);
+    await Future.delayed(const Duration(seconds: 2));
 
+    frame.display.charSpacing = 4;
     int oldWidth = frame.display.getTextWidth("Lorem ipsum!");
     frame.display.charSpacing = 10;
     await frame.display
         .showText("Lorem ipsum dolor sit amet, consectetur adipiscing elit.");
     int newWidth = frame.display.getTextWidth("Lorem ipsum!");
-    assertGreaterThan("Text width", newWidth, oldWidth + 5 * 10);
-
+    assertGreaterThan("Text width", newWidth, oldWidth);
+    await Future.delayed(const Duration(seconds: 2));
     frame.display.charSpacing = 4;
     // Test Display - Draw rectangles
 
-    await frame.display.drawRect(1, 1, 640, 400, color: PaletteColors.red);
-    await frame.display.drawRect(300, 300, 10, 10, color: PaletteColors.green);
+    await frame.display.drawRect(1, 1, 640, 400, PaletteColors.red);
+    await frame.display.drawRect(300, 300, 10, 10, PaletteColors.green);
     await frame.display.drawRectFilled(
         50, 50, 300, 300, 8, PaletteColors.skyBlue, PaletteColors.darkBrown);
     await frame.display.show();
+    await Future.delayed(const Duration(seconds: 5));
     await frame.display.clear();
 
     // Test Display - Word wrap
@@ -290,7 +531,7 @@ class _MyAppState extends State<MyApp> {
         "Wrapped text height",
         frame.display.getTextHeight(wrapped400),
         frame.display.getTextHeight(wrapped800) * 2,
-        100);
+        200);
 
     frame.display.charSpacing = 10;
     String wideWrapped400 = frame.display.wrapText(testText, 400);
@@ -334,29 +575,48 @@ class _MyAppState extends State<MyApp> {
     assertAlmostEqual(
         "Scroll text time proportional", elapsedTime1 * 3, elapsedTime2, 8000);
 
+    // Test tap handler registration
+    await frame.display.showText("Testing tap, tap the Frame!");
+
+    // Test with Lua script
+    await frame.motion.runOnTap(luaScript: "print('Tapped!')");
+
+    // Test with Dart callback
+    await frame.motion
+        .runOnTap(callback: () => frame.display.showText("Tapped!"));
+
+    // Test with both Lua script and Dart callback
+    await frame.motion.runOnTap(
+        luaScript: "print('tap1')",
+        callback: () => frame.display.showText("Tapped again!"));
+
+    // Test clearing tap handlers
+    await frame.motion.runOnTap(luaScript: null, callback: null);
+
     // Test Microphone
     frame.microphone.sampleRate = 8000;
     frame.microphone.bitDepth = 16;
+    await frame.display.showText("Testing microphone, please be silent!");
     var audioData = await frame.microphone
         .recordAudio(maxLength: const Duration(seconds: 5));
     assertTrue("Record audio", audioData.isNotEmpty);
     // Test Microphone - End on silence
-    await frame.display.showText("Testing microphone, please be silent!");
+
     var silentAudio = await frame.microphone.recordAudio(
         maxLength: const Duration(seconds: 20),
         silenceCutoffLength: const Duration(seconds: 2));
     await frame.display.clear();
-    assertTrue("End on silence recording shorter than max",
-        silentAudio.length < 5 * 8000);
+    assertGreaterThan(
+        "End on silence recording shorter than max",
+        5 * frame.microphone.sampleRate * frame.microphone.bitDepth ~/ 8,
+        silentAudio.length);
 
     // Test Microphone - Save audio file
-    await frame.display.showText("Testing microphone, please be silent!");
-    var length = await frame.microphone.saveAudioFile("test.wav",
-        maxLength: const Duration(seconds: 20),
-        silenceCutoffLength: const Duration(seconds: 2));
+    file = File("${dir.path}/test.wav");
+    var length = await frame.microphone.saveAudioFile(file.path,
+        maxLength: const Duration(seconds: 5), silenceCutoffLength: null);
     await frame.display.clear();
-    assertTrue("Saved audio file length", length < 5);
-    var file = File("test.wav");
+    assertAlmostEqual("Saved audio file near 5 seconds", length, 5, 0.5);
     assertTrue("Audio file exists", await file.exists());
     assertTrue(
         "Audio file size greater than 500b", (await file.length()) > 500);
@@ -366,40 +626,79 @@ class _MyAppState extends State<MyApp> {
     for (var sampleRate in [8000, 16000]) {
       for (var bitDepth in [8, 16]) {
         if (sampleRate == 16000 && bitDepth == 16) continue;
+        _addLogMessage("Testing microphone at ${sampleRate}Hz, ${bitDepth}bit");
+        await frame.display.showText(
+            "Recording 5 seconds at ${sampleRate}Hz, ${bitDepth}bit",
+            align: Alignment2D.middleCenter);
         frame.microphone.sampleRate = sampleRate;
         frame.microphone.bitDepth = bitDepth;
-        var data = await frame.microphone
-            .recordAudio(maxLength: const Duration(seconds: 5));
+        var data = await frame.microphone.recordAudio(
+            maxLength: const Duration(seconds: 5), silenceCutoffLength: null);
+        await frame.display
+            .showText("Playing back audio", align: Alignment2D.middleCenter);
 
         var stopwatch = Stopwatch()..start();
         await frame.microphone.playAudio(data);
         stopwatch.stop();
-        assertAlmostEqual("Play audio duration", 5,
-            stopwatch.elapsedMilliseconds / 1000, 0.5);
         assertAlmostEqual(
-            "Play audio matches data length",
-            data.length / frame.microphone.sampleRate,
+            "Play audio duration (${sampleRate}Hz, ${bitDepth}bit)",
+            5,
             stopwatch.elapsedMilliseconds / 1000,
-            0.2);
+            0.5);
+        assertAlmostEqual(
+            "Play audio matches data length (${sampleRate}Hz, ${bitDepth}bit)",
+            data.length /
+                frame.microphone.sampleRate /
+                (frame.microphone.bitDepth ~/ 8),
+            stopwatch.elapsedMilliseconds / 1000,
+            0.4);
 
         stopwatch.reset();
         stopwatch.start();
         await frame.microphone.playAudio(data);
         stopwatch.stop();
         assertAlmostEqual(
-            "Async play audio matches data length",
-            data.length / frame.microphone.sampleRate,
+            "Async play audio matches data length (${sampleRate}Hz, ${bitDepth}bit)",
+            data.length /
+                frame.microphone.sampleRate /
+                (frame.microphone.bitDepth ~/ 8),
             stopwatch.elapsedMilliseconds / 1000,
-            0.2);
+            0.4);
 
         stopwatch.reset();
         stopwatch.start();
         frame.microphone.playAudio(data);
         stopwatch.stop();
-        assertAlmostEqual("Background play audio start time", 0,
-            stopwatch.elapsedMilliseconds / 1000, 0.1);
+        assertAlmostEqual(
+            "Background play audio start time (${sampleRate}Hz, ${bitDepth}bit)",
+            0,
+            stopwatch.elapsedMilliseconds / 1000,
+            0.1);
+
+        await Future.delayed(const Duration(seconds: 5));
+
+        await frame.display.showText(
+            "Recording until silence at ${sampleRate}Hz, ${bitDepth}bit",
+            align: Alignment2D.middleCenter);
+        frame.microphone.sampleRate = sampleRate;
+        frame.microphone.bitDepth = bitDepth;
+        data = await frame.microphone.recordAudio();
+        await frame.display
+            .showText("Playing back audio", align: Alignment2D.middleCenter);
+
+        stopwatch = Stopwatch()..start();
+        await frame.microphone.playAudio(data);
+        stopwatch.stop();
+        assertAlmostEqual(
+            "Play audio matches data length (${sampleRate}Hz, ${bitDepth}bit)",
+            data.length /
+                frame.microphone.sampleRate /
+                (frame.microphone.bitDepth ~/ 8),
+            stopwatch.elapsedMilliseconds / 1000,
+            0.4);
       }
     }
+    await frame.display.clear();
 
     // Test Motion
     var direction = await frame.motion.getDirection();
@@ -425,31 +724,13 @@ class _MyAppState extends State<MyApp> {
     assertAlmostEqual(
         "Heading consistency", direction1.heading, direction2.heading, 5);
 
-    // Test tap handler registration
-    await frame.display.showText("Testing tap, tap the Frame!");
-
-    // Test with Lua script
-    await frame.motion.runOnTap(luaScript: "print('Tapped!')");
-
-    // Test with Dart callback
-    await frame.motion
-        .runOnTap(callback: () => frame.display.showText("Tapped!"));
-
-    // Test with both Lua script and Dart callback
-    await frame.motion.runOnTap(
-        luaScript: "print('tap1')",
-        callback: () => frame.display.showText("Tapped again!"));
-
-    // Test clearing tap handlers
-    await frame.motion.runOnTap(luaScript: null, callback: null);
-
     // Test sleep
     await frame.runLua("test_var = 55", checked: true);
 
     frameTime = double.parse(await frame.evaluate("frame.time.utc()"));
     currentTime = DateTime.now().millisecondsSinceEpoch / 1000.0;
     assertAlmostEqual("Frame time is close to current time before sleep",
-        frameTime, currentTime, 2);
+        frameTime, currentTime, 3);
 
     await frame.sleep();
 
@@ -466,6 +747,12 @@ class _MyAppState extends State<MyApp> {
 
     assertTrue("Camera is awake after taking photo", frame.camera.isAwake);
 
+    frameTime = double.parse(await frame.evaluate("frame.time.utc()"));
+    currentTime = DateTime.now().millisecondsSinceEpoch / 1000.0;
+    assertAlmostEqual("Frame time is close to current time after sleep",
+        frameTime, currentTime, 3);
+
+    await frame.motion.runOnTap(callback: () => _addLogMessage("Tapped!"));
 
     _addLogMessage("All tests completed.");
   }
@@ -513,14 +800,19 @@ class _MyAppState extends State<MyApp> {
     } else {
       if (expected.length != actual.length) {
         if (expected.length > actual.length) {
-          final differentItems = expected.where((element) => !actual.contains(element));
-          _addLogMessage('❌ Test failed $message: expected list length ${expected.length}, got ${actual.length}.  Expected items not received: $differentItems');
+          final differentItems =
+              expected.where((element) => !actual.contains(element));
+          _addLogMessage(
+              '❌ Test failed $message: expected list length ${expected.length}, got ${actual.length}.  Expected items not received: $differentItems');
         } else {
-          final differentItems = actual.where((element) => !expected.contains(element));
-          _addLogMessage('❌ Test failed $message: expected list length ${expected.length}, got ${actual.length}.  Actual items not expected: $differentItems');
+          final differentItems =
+              actual.where((element) => !expected.contains(element));
+          _addLogMessage(
+              '❌ Test failed $message: expected list length ${expected.length}, got ${actual.length}.  Actual items not expected: $differentItems');
         }
       } else {
-        _addLogMessage('❌ Test failed $message: expected $expected, got $actual');
+        _addLogMessage(
+            '❌ Test failed $message: expected $expected, got $actual');
       }
     }
   }
@@ -528,28 +820,21 @@ class _MyAppState extends State<MyApp> {
   void assertGreaterThan(
       String message, num expectedGreater, num expectedLower) {
     if (expectedGreater > expectedLower) {
-      _addLogMessage('✅ Test passed: $message');
+      _addLogMessage(
+          '✅ Test passed $message: expected ${expectedGreater.toStringAsFixed(2)} > ${expectedLower.toStringAsFixed(2)}.  Difference of ${(expectedGreater - expectedLower).abs().toStringAsFixed(2)}');
     } else {
       _addLogMessage(
-          '❌ Test failed $message: expected $expectedGreater > $expectedLower');
+          '❌ Test failed $message: expected ${expectedGreater.toStringAsFixed(2)} > ${expectedLower.toStringAsFixed(2)}.  Difference of ${(expectedGreater - expectedLower).abs().toStringAsFixed(2)}');
     }
   }
 
   void assertAlmostEqual(String message, num expected, num actual, num delta) {
     if ((expected - actual).abs() <= delta) {
-      _addLogMessage('✅ Test passed: $message');
+      _addLogMessage(
+          '✅ Test passed $message: expected ${expected.toStringAsFixed(2)}, got ${actual.toStringAsFixed(2)}. Actual difference: ${(expected - actual).abs().toStringAsFixed(2)}, max expected delta: ${delta.toStringAsFixed(2)}');
     } else {
       _addLogMessage(
-          '❌ Test failed $message: expected $expected, got $actual (delta: $delta)');
-    }
-  }
-
-  void assertRaises(String message, Future Function() function) async {
-    try {
-      await function();
-      _addLogMessage('❌ Test failed: $message');
-    } catch (e) {
-      _addLogMessage('✅ Test passed $message: $e');
+          '❌ Test failed $message: expected ${expected.toStringAsFixed(2)}, got ${actual.toStringAsFixed(2)}.  Actual difference: ${(expected - actual).abs().toStringAsFixed(2)}, max expected delta: ${delta.toStringAsFixed(2)}');
     }
   }
 

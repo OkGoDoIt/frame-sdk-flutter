@@ -43,7 +43,7 @@ function sendPartial(dataToSend, max_size)
 	return chunkIndex
 end
 function printCompleteFile(filename)
-	local mtu = frame.bluetooth.max_length()
+	local mtu = frame.bluetooth.max_length() - 1
 	local f = frame.file.open(filename, "read")
 	local chunkIndex = 0
 	local chunk = ""
@@ -82,51 +82,52 @@ function printCompleteFile(filename)
 end
 function cameraCaptureAndSend(quality,autoExpTimeDelay,autofocusType)
 	local last_autoexp_time = 0
-		local state = 'EXPOSING'
-		local state_time = frame.time.utc()
-		local chunkIndex = 0
-		if autoExpTimeDelay == nil then
-				state = 'CAPTURE'
-		end
+	local state = 'EXPOSING'
+	local state_time = frame.time.utc()
+	local chunkIndex = 0
+	if autoExpTimeDelay == nil then
+			state = 'CAPTURE'
+	end
 
-		while true do
-				if state == 'EXPOSING' then
-						if frame.time.utc() - last_autoexp_time > 0.1 then
-								frame.camera.auto { metering = autofocusType }
-								last_autoexp_time = frame.time.utc()
-						end
-						if frame.time.utc() > state_time + autoExpTimeDelay then
-								state = 'CAPTURE'
-						end
-				elseif state == 'CAPTURE' then
-						frame.camera.capture { quality_factor = quality }
-						state_time = frame.time.utc()
-						state = 'WAIT'
-				elseif state == 'WAIT' then
-						if frame.time.utc() > state_time + 0.5 then
-								state = 'SEND'
-						end
-				elseif state == 'SEND' then
-						local i = frame.camera.read(frame.bluetooth.max_length() - 1)
-						if (i == nil) then
-								state = 'DONE'
-						else
-								while true do
-										if pcall(frame.bluetooth.send, '\\x${FrameDataTypePrefixes.longData.valueAsHex}' .. i) then
-												break
-										end
-								end
-								chunkIndex = chunkIndex + 1
-						end
-				elseif state == 'DONE' then
+	while true do
+			if state == 'EXPOSING' then
+					if frame.time.utc() - last_autoexp_time > 0.1 then
+							frame.camera.auto { metering = autofocusType }
+							last_autoexp_time = frame.time.utc()
+					end
+					if frame.time.utc() > state_time + autoExpTimeDelay then
+							state = 'CAPTURE'
+					end
+			elseif state == 'CAPTURE' then
+					frame.camera.capture { quality_factor = quality }
+					state_time = frame.time.utc()
+					state = 'WAIT'
+			elseif state == 'WAIT' then
+					if frame.time.utc() > state_time + 0.5 then
+							state = 'SEND'
+					end
+			elseif state == 'SEND' then
+					local i = frame.camera.read(frame.bluetooth.max_length() - 3)
+					if (i == nil) then
+							state = 'DONE'
+					else
 						while true do
-								if pcall(frame.bluetooth.send, '\\x${FrameDataTypePrefixes.longDataEnd.valueAsHex}' .. chunkIndex) then
+								if pcall(frame.bluetooth.send, '\\x${FrameDataTypePrefixes.photoData.valueAsHex}' .. i) then
 										break
 								end
+								frame.sleep(0.01)
 						end
+						chunkIndex = chunkIndex + 1
+					end
+			elseif state == 'DONE' then
+				while true do
+					if pcall(frame.bluetooth.send, '\\x${FrameDataTypePrefixes.photoDataEnd.valueAsHex}' .. chunkIndex) then
 						break
+					end
 				end
-		end
+				break
+			end
+	end
 end
 function drawRect(x,y,width,height,color)
 	frame.display.bitmap(x,y,width,2,color,string.rep("\\xFF",math.floor(width/8*height)))
@@ -176,7 +177,7 @@ function scrollText(text, line_height, total_height, lines_per_frame, delay, tex
 				end
 				i = i + lines_per_frame
 		end
-		extra_time = frame.time.utc() + (1 * line_height / lines_per_frame * delay)
+		local extra_time = frame.time.utc() + (1 * line_height / lines_per_frame * delay)
 		while frame.time.utc() < extra_time do
 		end
 end

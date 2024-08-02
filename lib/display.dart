@@ -48,9 +48,11 @@ enum PaletteColors {
   static PaletteColors fromIndex(int index) {
     return PaletteColors.values.firstWhere(
       (color) => color.paletteIndex == index,
-      orElse: () => throw ArgumentError('No PaletteColor found for index $index'),
+      orElse: () =>
+          throw ArgumentError('No PaletteColor found for index $index'),
     );
   }
+
   PaletteColors operator +(int value) => fromIndex(value);
 }
 
@@ -89,233 +91,245 @@ class Display {
   };
 
   static const Map<int, int> _charWidthMapping = {
-    0x000020: 13,
-    0x000021: 5,
-    0x000022: 13,
-    0x000023: 19,
-    0x000024: 17,
-    0x000025: 34,
-    0x000026: 20,
-    0x000027: 5,
-    0x000028: 10,
-    0x000029: 11,
-    0x00002A: 21,
-    0x00002B: 19,
-    0x00002C: 8,
-    0x00002D: 17,
-    0x00002E: 6,
-    0x000030: 18,
-    0x000031: 16,
-    0x000032: 16,
-    0x000033: 15,
-    0x000034: 18,
-    0x000035: 15,
-    0x000036: 17,
-    0x000037: 15,
-    0x000038: 18,
-    0x000039: 17,
-    0x00003A: 6,
-    0x00003B: 8,
-    0x00003C: 19,
-    0x00003D: 19,
-    0x00003E: 19,
-    0x00003F: 14,
-    0x000040: 31,
     0x000041: 22,
-    0x000042: 18,
-    0x000043: 16,
-    0x000044: 19,
-    0x000045: 17,
-    0x000046: 17,
-    0x000047: 18,
-    0x000048: 19,
-    0x000049: 12,
-    0x00004A: 14,
-    0x00004B: 19,
-    0x00004C: 16,
-    0x00004D: 23,
-    0x00004E: 19,
-    0x00004F: 20,
-    0x000050: 18,
-    0x000051: 22,
-    0x000052: 20,
-    0x000053: 17,
-    0x000054: 20,
     0x000055: 19,
-    0x000056: 21,
-    0x000057: 23,
-    0x000058: 21,
-    0x000059: 23,
-    0x00005A: 17,
-    0x00005B: 9,
-    0x00005C: 15,
-    0x00005D: 10,
-    0x00005E: 20,
-    0x00005F: 25,
-    0x000060: 11,
-    0x000061: 19,
-    0x000062: 18,
-    0x000063: 13,
-    0x000064: 18,
-    0x000065: 16,
-    0x000066: 15,
-    0x000067: 20,
-    0x000068: 18,
-    0x000069: 5,
-    0x00006A: 11,
-    0x00006B: 18,
-    0x00006C: 8,
-    0x00006D: 28,
-    0x00006E: 18,
-    0x00006F: 18,
-    0x000070: 18,
-    0x000071: 18,
-    0x000072: 11,
-    0x000073: 15,
-    0x000074: 14,
-    0x000075: 17,
-    0x000076: 19,
-    0x000077: 30,
-    0x000078: 20,
-    0x000079: 20,
-    0x00007A: 16,
-    0x00007B: 12,
-    0x00007C: 5,
-    0x00007D: 12,
-    0x00007E: 17,
-    0x0000A1: 6,
-    0x0000A2: 14,
-    0x0000A3: 18,
-    0x0000A5: 22,
-    0x0000A9: 28,
-    0x0000AB: 17,
-    0x0000AE: 29,
-    0x0000B0: 15,
-    0x0000B1: 20,
-    0x0000B5: 17,
-    0x0000B7: 6,
-    0x0000BB: 17,
-    0x0000BF: 14,
-    0x0000C0: 22,
-    0x0000C1: 23,
-    0x0000C2: 23,
-    0x0000C3: 23,
-    0x0000C4: 23,
-    0x0000C5: 23,
-    0x0000C6: 32,
-    0x0000C7: 16,
-    0x0000C8: 17,
-    0x0000C9: 16,
-    0x0000CA: 17,
-    0x0000CB: 17,
-    0x0000CC: 12,
     0x0000CD: 11,
+    0x00005C: 15,
+    0x000069: 5,
+    0x0000C2: 23,
+    0x0F0003: 70,
+    0x0F000E: 77,
+    0x0F000D: 70,
+    0x0F0002: 70,
+    0x000068: 18,
+    0x00005B: 9,
+    0x0000C3: 23,
+    0x0000B7: 6,
+    0x00004F: 20,
+    0x000054: 20,
     0x0000CE: 16,
+    0x000040: 31,
+    0x000056: 21,
+    0x000042: 18,
+    0x0000A9: 28,
+    0x0000C1: 23,
+    0x00004D: 23,
+    0x0000B5: 17,
+    0x0F0000: 70,
+    0x0F000F: 76,
+    0x0F0001: 70,
+    0x00004E: 19,
+    0x0000C0: 22,
+    0x00005A: 17,
+    0x000043: 16,
+    0x0000BB: 17,
     0x0000CF: 15,
-    0x0000D0: 22,
-    0x0000D1: 19,
-    0x0000D2: 20,
-    0x0000D3: 20,
-    0x0000D4: 20,
-    0x0000D5: 20,
-    0x0000D6: 20,
-    0x0000D7: 18,
-    0x0000D8: 20,
-    0x0000D9: 19,
-    0x0000DA: 19,
-    0x0000DB: 19,
+    0x000057: 23,
+    0x00005E: 20,
+    0x0000C4: 23,
+    0x0000B0: 15,
+    0x00004A: 14,
+    0x000053: 17,
+    0x0000CB: 17,
+    0x0000BF: 14,
+    0x000047: 18,
+    0x0F000C: 70,
+    0x0F0005: 70,
+    0x0F0004: 91,
+    0x0F0010: 70,
+    0x0F000B: 70,
+    0x000046: 17,
+    0x000052: 20,
+    0x0000CC: 12,
+    0x0000B1: 20,
+    0x00005D: 10,
+    0x0000C5: 23,
+    0x000078: 20,
+    0x00004B: 19,
+    0x0000C7: 16,
+    0x00005F: 25,
+    0x000044: 19,
+    0x0000CA: 17,
+    0x000050: 18,
+    0x0F0006: 70,
+    0x000131: 5,
+    0x0F0007: 70,
+    0x0F000A: 70,
+    0x000051: 22,
+    0x000045: 17,
+    0x0000C6: 32,
+    0x00004C: 16,
+    0x000079: 20,
+    0x000022: 13,
     0x0000DC: 19,
-    0x0000DD: 22,
-    0x0000DE: 18,
-    0x0000DF: 19,
-    0x0000E0: 19,
+    0x000036: 17,
+    0x00002D: 17,
+    0x0000D5: 20,
     0x0000E1: 19,
-    0x0000E2: 19,
-    0x0000E3: 19,
-    0x0000E4: 19,
-    0x0000E5: 19,
-    0x0000E6: 29,
-    0x0000E7: 14,
-    0x0000E8: 17,
-    0x0000E9: 16,
-    0x0000EA: 17,
-    0x0000EB: 17,
-    0x0000EC: 11,
-    0x0000ED: 11,
-    0x0000EE: 16,
+    0x000142: 10,
+    0x0000E0: 19,
+    0x00003A: 6,
+    0x00002E: 6,
+    0x0000D4: 20,
     0x0000EF: 15,
-    0x0000F0: 18,
-    0x0000F1: 16,
-    0x0000F2: 18,
-    0x0000F3: 18,
+    0x000037: 15,
+    0x000023: 19,
+    0x0000DB: 19,
+    0x000035: 15,
+    0x0000ED: 11,
+    0x000021: 5,
+    0x00003C: 19,
+    0x0000E2: 19,
+    0x0000D6: 20,
+    0x000141: 19,
+    0x0000D7: 18,
+    0x00003B: 8,
+    0x0000E3: 19,
+    0x0000DA: 19,
+    0x000020: 13,
+    0x000034: 18,
+    0x0000EE: 16,
+    0x0000E7: 14,
+    0x00003F: 14,
+    0x00002B: 19,
+    0x0000D3: 20,
+    0x0000EA: 17,
+    0x000030: 18,
+    0x000024: 17,
+    0x0000DE: 18,
+    0x000178: 22,
+    0x000192: 16,
+    0x000025: 34,
+    0x0000DD: 22,
+    0x000031: 16,
+    0x00002C: 8,
+    0x0000D2: 20,
+    0x0000E6: 29,
+    0x0000D0: 22,
+    0x00002A: 21,
+    0x00003E: 19,
+    0x0000E4: 19,
+    0x0000DF: 19,
+    0x000027: 5,
+    0x000033: 15,
+    0x0000EB: 17,
+    0x0000F8: 18,
+    0x000153: 30,
+    0x000152: 30,
+    0x000032: 16,
+    0x0000F9: 17,
+    0x0000EC: 11,
+    0x000026: 20,
+    0x00003D: 19,
+    0x0000E5: 19,
+    0x0000D1: 19,
+    0x0000E8: 17,
+    0x0000FB: 16,
     0x0000F4: 18,
     0x0000F5: 17,
-    0x0000F6: 18,
-    0x0000F7: 19,
-    0x0000F8: 18,
-    0x0000F9: 17,
-    0x0000FA: 17,
-    0x0000FB: 16,
     0x0000FC: 17,
-    0x0000FD: 20,
-    0x0000FE: 18,
-    0x0000FF: 20,
-    0x000131: 5,
-    0x000141: 19,
-    0x000142: 10,
-    0x000152: 30,
-    0x000153: 30,
+    0x0000E9: 16,
+    0x0000FA: 17,
+    0x000028: 10,
+    0x0000F7: 19,
     0x000160: 17,
     0x000161: 15,
-    0x000178: 22,
+    0x0000F6: 18,
+    0x000029: 11,
+    0x000039: 17,
+    0x0000F2: 18,
+    0x0000FD: 20,
+    0x0000FE: 18,
+    0x000038: 18,
+    0x0000F3: 18,
+    0x0000F1: 16,
+    0x0000D9: 19,
     0x00017D: 18,
     0x00017E: 17,
-    0x000192: 16,
+    0x0000D8: 20,
+    0x0000FF: 20,
+    0x0000F0: 18,
+    0x000060: 11,
+    0x000074: 14,
+    0x0000AE: 29,
+    0x00006F: 18,
+    0x00007B: 12,
+    0x000048: 19,
+    0x0000A3: 18,
+    0x000049: 12,
+    0x00007C: 5,
+    0x0000A2: 14,
+    0x000075: 17,
+    0x000061: 19,
+    0x000077: 30,
+    0x000063: 13,
+    0x0000C8: 17,
+    0x00007A: 16,
+    0x00006E: 18,
     0x0020AC: 18,
-    0x0F0000: 70,
-    0x0F0001: 70,
-    0x0F0002: 70,
-    0x0F0003: 70,
-    0x0F0004: 91,
-    0x0F0005: 70,
-    0x0F0006: 70,
-    0x0F0007: 70,
-    0x0F0008: 70,
     0x0F0009: 70,
-    0x0F000A: 70,
-    0x0F000B: 70,
-    0x0F000C: 70,
-    0x0F000D: 70,
-    0x0F000E: 77,
-    0x0F000F: 76,
-    0x0F0010: 70,
+    0x0F0008: 70,
+    0x00006D: 28,
+    0x0000A1: 6,
+    0x000062: 18,
+    0x0000C9: 16,
+    0x000076: 19,
+    0x00007D: 12,
+    0x0000A5: 22,
+    0x000072: 11,
+    0x000066: 15,
+    0x000067: 20,
+    0x000073: 15,
+    0x0000AB: 17,
+    0x00006A: 11,
+    0x00007E: 17,
+    0x000059: 23,
+    0x00006C: 8,
+    0x000065: 16,
+    0x000071: 18,
+    0x000070: 18,
+    0x000064: 18,
+    0x00006B: 18,
+    0x000058: 21
   };
 
   int charSpacing = 4;
 
-  Future<void> showText(
-    String text, {
-    int x = 1,
-    int y = 1,
-    int? maxWidth = 640,
-    int? maxHeight,
-    Alignment2D align = Alignment2D.topLeft,
-    PaletteColors? color
-  }) async {
-    await writeText(
-      text,
-      x: x,
-      y: y,
-      maxWidth: maxWidth,
-      maxHeight: maxHeight,
-      color: color,
-      align: align,
-    );
-    await show();
+  Future<void> showText(String text,
+      {int x = 1,
+      int y = 1,
+      int? maxWidth = 640,
+      int? maxHeight,
+      PaletteColors? color,
+      Alignment2D align = Alignment2D.topLeft}) async {
+    await _writeText(text, true,
+        x: x,
+        y: y,
+        maxWidth: maxWidth,
+        maxHeight: maxHeight,
+        color: color,
+        align: align);
   }
 
-  Future<void> writeText(
-    String text, {
+  Future<void> writeText(String text,
+      {int x = 1,
+      int y = 1,
+      int? maxWidth = 640,
+      int? maxHeight,
+      PaletteColors? color,
+      Alignment2D align = Alignment2D.topLeft}) async {
+    await _writeText(text, false,
+        x: x,
+        y: y,
+        maxWidth: maxWidth,
+        maxHeight: maxHeight,
+        color: color,
+        align: align);
+  }
+
+  Future<void> _writeText(
+    String text,
+    bool show, {
     int x = 1,
     int y = 1,
     int? maxWidth = 640,
@@ -334,7 +348,7 @@ class Display {
     } else if (align.vertical == Alignment.trailing) {
       verticalOffset = (maxHeight ?? (400 - y)) - totalHeightOfText;
     }
-
+    String luaToSend = '';
     for (final line in text.split("\n")) {
       int thisLineX = x;
       if (align.horizontal == Alignment.center) {
@@ -342,24 +356,42 @@ class Display {
       } else if (align.horizontal == Alignment.trailing) {
         thisLineX = x + (maxWidth ?? (640 - x)) - getTextWidth(line);
       }
-      await frame.runLua(
-        'frame.display.text("${frame.escapeLuaString(line)}",$thisLineX,${y + verticalOffset},{spacing=$charSpacing${color != null ? ',color="${color.name}"' : ''}',
-        checked: true,
-      );
+      luaToSend +=
+          'frame.display.text("${frame.escapeLuaString(line)}",$thisLineX,${y + verticalOffset}';
+      if (charSpacing != 4 || color != null) {
+        luaToSend += ',{';
+        if (charSpacing != 4) {
+          luaToSend += 'spacing=$charSpacing';
+        }
+        if (charSpacing != 4 && color != null) {
+          luaToSend += ',';
+        }
+        if (color != null) {
+          luaToSend += 'color="${color.name}"';
+        }
+        luaToSend += '}';
+      }
+      luaToSend += ');';
+
       y += lineHeight;
       if (maxHeight != null && y > maxHeight || y + verticalOffset > 640) {
         break;
       }
     }
+    if (show) {
+      luaToSend += 'frame.display.show()';
+    }
+    await frame.runLua(
+      luaToSend,
+      checked: true,
+    );
   }
 
-  Future<void> scrollText(
-    String text, {
-    int linesPerFrame = 5,
-    double delay = 0.12,
-    PaletteColors? textColor,
-    PaletteColors? backgroundColor
-  }) async {
+  Future<void> scrollText(String text,
+      {int linesPerFrame = 5,
+      double delay = 0.12,
+      PaletteColors? textColor,
+      PaletteColors? backgroundColor}) async {
     text = wrapText(text, 640);
     final totalHeight = getTextHeight(text);
     if (totalHeight < 400) {
@@ -367,7 +399,8 @@ class Display {
       return;
     }
     String textColorName = textColor?.name ?? PaletteColors.white.name;
-    String backgroundColorIndex = backgroundColor?.paletteIndex.toString() ?? "nil";
+    String backgroundColorIndex =
+        backgroundColor?.paletteIndex.toString() ?? "nil";
     await frame.runLua(
       'scrollText("${frame.escapeLuaString(text)}",$lineHeight,$totalHeight,$linesPerFrame,$delay,"$textColorName",$backgroundColorIndex,$charSpacing)',
       checked: true,
@@ -412,7 +445,7 @@ class Display {
   int getTextWidth(String text) {
     var width = 0;
     for (final char in text.runes) {
-      width += _charWidthMapping[char] ?? 25 + charSpacing;
+      width += (_charWidthMapping[char] ?? 25) + charSpacing;
     }
     return width;
   }
@@ -422,19 +455,28 @@ class Display {
   }
 
   Future<void> clear() async {
-    await frame.runLua('frame.display.bitmap(1,1,4,2,15,"\\xFF")');
-    await show();
+    await frame.runLua(
+      'frame.display.text(" ",1,1);frame.display.show()',
+      checked: false,
+    );
   }
 
   Future<void> setPalette(PaletteColors paletteIndex, Color newColor) async {
     colorPaletteMapping[paletteIndex] = newColor;
-    await frame.runLua("frame.display.assign_color(${paletteIndex.name},${newColor.red},${newColor.green},${newColor.blue})", checked: true);
+    await frame.runLua(
+        "frame.display.assign_color(${paletteIndex.name},${newColor.red},${newColor.green},${newColor.blue})",
+        checked: true);
   }
 
-  Future<void> drawRect(int x, int y, int w, int h, {PaletteColors color = PaletteColors.white}) async {
+  String _drawRectLua(int x, int y, int w, int h, PaletteColors color) {
     w = (w ~/ 8) * 8;
+    return 'frame.display.bitmap($x,$y,$w,2,${color.paletteIndex},string.rep("\\xFF",${(w ~/ 8) * h}))';
+  }
+
+  Future<void> drawRect(int x, int y, int w, int h, PaletteColors color) async {
     await frame.runLua(
-      'frame.display.bitmap($x,$y,$w,2,${color.paletteIndex},string.rep("\\xFF",${(w ~/ 8) * h}))',
+      _drawRectLua(x, y, w, h, color),
+      checked: true,
     );
   }
 
@@ -447,6 +489,7 @@ class Display {
     PaletteColors borderColor,
     PaletteColors fillColor,
   ) async {
+    String luaToSend = '';
     w = (w ~/ 8) * 8;
     if (borderWidth > 0) {
       borderWidth = (borderWidth ~/ 8) * 8;
@@ -454,17 +497,18 @@ class Display {
         borderWidth = 8;
       }
     } else {
-      await drawRect(x, y, w, h, color: fillColor);
+      luaToSend += _drawRectLua(x, y, w, h, fillColor);
       return;
     }
 
-    await drawRect(x, y, w, h, color: borderColor);
-    await drawRect(
+    luaToSend += _drawRectLua(x, y, w, h, borderColor);
+    luaToSend += _drawRectLua(
       x + borderWidth,
       y + borderWidth,
       w - borderWidth * 2,
       h - borderWidth * 2,
-      color: fillColor,
+      fillColor,
     );
+    await frame.runLua(luaToSend, checked: true);
   }
 }

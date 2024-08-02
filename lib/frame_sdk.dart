@@ -24,6 +24,9 @@ class Frame {
   late final Camera camera;
   late final Display display;
   late final Motion motion;
+  int timesToRetry = 1;
+  int? _retryCount;
+  DateTime _lastTimeSync = DateTime.now();
 
   Frame() {
     files = Files(this);
@@ -65,21 +68,30 @@ class Frame {
 
     if (!wasConnected && isConnectedNow) {
       await bluetooth.sendBreakSignal();
+      bluetooth.getDataOfType(FrameDataTypePrefixes.debugPrint).listen((data) {
+        logger.info("Debug print: ${utf8.decode(data)}");
+      });
       await injectAllLibraryFunctions();
-      String utcUnixEpochTime =
-          (DateTime.now().toUtc().millisecondsSinceEpoch ~/ 1000).toString();
-      String timeZoneOffset =
-          DateTime.now().timeZoneOffset.inMinutes > 0 ? '+' : '-';
-      timeZoneOffset +=
-          '${DateTime.now().timeZoneOffset.inHours.abs().toString().padLeft(2, '0')}:${(DateTime.now().timeZoneOffset.inMinutes.abs() % 60).toString().padLeft(2, '0')}';
-      logger.info(
-          "Setting time to $utcUnixEpochTime and time zone to $timeZoneOffset");
-      await runLua(
-          "is_awake=true;frame.time.utc($utcUnixEpochTime);frame.time.zone('$timeZoneOffset')",
-          checked: true);
+      await setTimeOnFrame(checked: true);
+      await runLua("is_awake=true", checked: true);
     }
 
     return isConnectedNow;
+  }
+
+  Future<void> setTimeOnFrame({bool checked = false}) async {
+    String utcUnixEpochTime =
+        (DateTime.now().toUtc().millisecondsSinceEpoch ~/ 1000).toString();
+    String timeZoneOffset =
+        DateTime.now().timeZoneOffset.inMinutes > 0 ? '+' : '-';
+    timeZoneOffset +=
+        '${DateTime.now().timeZoneOffset.inHours.abs().toString().padLeft(2, '0')}:${(DateTime.now().timeZoneOffset.inMinutes.abs() % 60).toString().padLeft(2, '0')}';
+    logger.info(
+        "Setting time to $utcUnixEpochTime and time zone to $timeZoneOffset");
+    await runLua(
+        "frame.time.utc($utcUnixEpochTime);frame.time.zone('$timeZoneOffset')",
+        checked: checked, withoutHelpers: true);
+    _lastTimeSync = DateTime.now();
   }
 
   Future<void> disconnect() async {
@@ -94,29 +106,47 @@ class Frame {
   Future<void> ensureConnected() async {
     if (!isConnected) {
       if (!await connect()) {
-        throw BrilliantBluetoothException(
-            "Failed to connect to Frame device with the timeout of ${bluetooth.defaultTimeout}");
+        _retryCount ??= 0;
+        if ((_retryCount ?? 99) < timesToRetry) {
+          _retryCount = (_retryCount ?? 99) + 1;
+          await ensureConnected();
+          _retryCount = null;
+        } else {
+          throw BrilliantBluetoothException(
+              "Failed to connect to Frame device with the timeout of ${bluetooth.defaultTimeout}");
+        }
       }
     }
+  }
+
+  static const _chars =
+      'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  String _generateRandomString(int length) {
+    return String.fromCharCodes(List.generate(
+        length, (_) => _chars.codeUnitAt(Random().nextInt(_chars.length))));
   }
 
   Future<String?> runLua(String luaString,
       {bool awaitPrint = false,
       bool checked = false,
-      Duration? timeout}) async {
-    await ensureConnected();
-    luaString =
-        luaString.replaceAllMapped(RegExp(r'\bprint\('), (match) => 'prntLng(');
+      Duration? timeout,
+      bool withoutHelpers = false}) async {
+    if (!withoutHelpers) {
+      await ensureConnected();
+      luaString = luaString.replaceAllMapped(
+          RegExp(r'\bprint\('), (match) => 'prntLng(');
+    }
 
     if (luaString.length <= (bluetooth.maxStringLength ?? 0)) {
       if (checked && !awaitPrint) {
-        luaString += ";print(\"+\")";
-        if (luaString.length <= (bluetooth.maxStringLength ?? 0)) {
-          final result = await bluetooth.sendString(luaString,
-              awaitResponse: true, timeout: timeout);
-          if (result != "+") {
-            throw Exception("Lua did not run successfully: $result");
-          }
+        final checkString = _generateRandomString(3);
+        final checkedLuaString = "$luaString;print(\"+$checkString\")";
+        if (checkedLuaString.length <= (bluetooth.maxStringLength ?? 0)) {
+          final waitingForResponse =
+              bluetooth.waitForString(match: "+$checkString", timeout: timeout);
+          await bluetooth.sendString(checkedLuaString, awaitResponse: false);
+          await waitingForResponse;
+
           return null;
         }
       } else {
@@ -125,8 +155,13 @@ class Frame {
       }
     }
 
-    return await sendLongLua(luaString,
-        awaitPrint: awaitPrint, checked: checked, timeout: timeout);
+    if (!withoutHelpers) {
+      return await sendLongLua(luaString,
+          awaitPrint: awaitPrint, checked: checked, timeout: timeout);
+    } else {
+      // the string is too long to send without helpers
+      throw const BrilliantBluetoothException("The string is too long to send without helpers");
+    }
   }
 
   Future<String?> sendLongLua(String string,
@@ -136,7 +171,7 @@ class Frame {
     await ensureConnected();
 
     final randomName = String.fromCharCodes(
-        List.generate(4, (_) => Random().nextInt(26) + 97));
+        List.generate(6, (_) => Random().nextInt(26) + 97));
 
     await files.writeFile("/$randomName.lua", utf8.encode(string),
         checked: true);
@@ -145,13 +180,13 @@ class Frame {
       response = await bluetooth.sendString("require(\"$randomName\")",
           awaitResponse: true, timeout: timeout);
     } else if (checked) {
+      final checkString = _generateRandomString(3);
+      final waitingForResponse =
+          bluetooth.waitForString(match: ">$checkString", timeout: timeout);
       response = await bluetooth.sendString(
-          "require(\"$randomName\");print('done')",
-          awaitResponse: true,
-          timeout: timeout);
-      if (response != "done") {
-        throw Exception("require() did not return 'done': $response");
-      }
+          "require(\"$randomName\");print('>$checkString')",
+          awaitResponse: false);
+      await waitingForResponse;
       response = null;
     } else {
       response = await bluetooth.sendString("require(\"$randomName\")");
