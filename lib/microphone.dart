@@ -23,8 +23,13 @@ class Microphone {
 
   Microphone(this.frame);
 
+  /// Gets the bit depth (number of bits per audio sample), either 8 or 16.
   int get bitDepth => _bitDepth;
 
+  /// Sets the bit depth (number of bits per audio sample) to either 8 or 16.
+  /// 
+  /// Throws:
+  ///   ArgumentError: If the bit depth is not 8 or 16.
   set bitDepth(int value) {
     if (value != 8 && value != 16) {
       throw ArgumentError('Bit depth must be 8 or 16');
@@ -32,8 +37,13 @@ class Microphone {
     _bitDepth = value;
   }
 
+  /// Gets the sample rate (number of audio samples per second), either 8000 or 16000.
   int get sampleRate => _sampleRate;
 
+  /// Sets the sample rate (number of audio samples per second) to either 8000 or 16000.
+  /// 
+  /// Throws:
+  ///   ArgumentError: If the sample rate is not 8000 or 16000.
   set sampleRate(int value) {
     if (value != 8000 && value != 16000) {
       throw ArgumentError('Sample rate must be 8000 or 16000');
@@ -41,6 +51,17 @@ class Microphone {
     _sampleRate = value;
   }
 
+  /// Records audio from the microphone.
+  /// 
+  /// Args:
+  ///   silenceCutoffLength (Duration?): The length of silence to allow before stopping the recording. Defaults to 3 seconds.
+  ///   maxLength (Duration): The maximum length of the recording. Defaults to 30 seconds.
+  /// 
+  /// Returns:
+  ///   Future<Uint8List>: The recorded audio data.
+  /// 
+  /// Throws:
+  ///   StateError: If no audio data is recorded.
   Future<Uint8List> recordAudio({
     Duration? silenceCutoffLength = const Duration(seconds: 3),
     Duration maxLength = const Duration(seconds: 30),
@@ -98,6 +119,18 @@ class Microphone {
     return _audioBuffer!;
   }
 
+  /// Saves the recorded audio to a file.
+  /// 
+  /// Args:
+  ///   filename (String): The name of the file to save the audio to.
+  ///   silenceCutoffLength (Duration?): The length of silence to detect before stopping the recording automatically. Defaults to 3 seconds.
+  ///   maxLength (Duration): The maximum length of the recording. Defaults to 30 seconds.
+  /// 
+  /// Returns:
+  ///   Future<double>: The length of the recorded audio in seconds.
+  /// 
+  /// Throws:
+  ///   ArgumentError: If no audio data is recorded.
   Future<double> saveAudioFile(
     String filename, {
     Duration? silenceCutoffLength = const Duration(seconds: 3),
@@ -119,6 +152,10 @@ class Microphone {
     return lengthInSeconds;
   }
 
+  /// Handles incoming audio data and updates the audio buffer.
+  /// 
+  /// Args:
+  ///   data (Uint8List): The incoming audio data.
   void _audioBufferHandler(Uint8List data) {
     if (_audioBuffer == null || _audioFinishedCompleter.isCompleted) {
       logger.fine('in _audioBufferHandler, audio buffer is null or the completer is completed');
@@ -164,6 +201,17 @@ class Microphone {
     }
   }
 
+  /// Converts raw audio bytes to a list of audio data.
+  /// 
+  /// Args:
+  ///   audioBuffer (Uint8List): The raw audio data.
+  ///   bitDepth (int): The bit depth of the audio data.
+  /// 
+  /// Returns:
+  ///   List<int>: The converted audio data.
+  /// 
+  /// Throws:
+  ///   ArgumentError: If the bit depth is unsupported.
   List<int> _convertBytesToAudioData(Uint8List audioBuffer, int bitDepth) {
     if (bitDepth == 16) {
       return audioBuffer.buffer.asInt16List().toList();
@@ -174,6 +222,14 @@ class Microphone {
     }
   }
 
+  /// Normalizes the audio data.
+  /// 
+  /// Args:
+  ///   audioBuffer (Uint8List): The raw audio data.
+  ///   bitDepth (int): The bit depth of the audio data.
+  /// 
+  /// Returns:
+  ///   List<int>: The normalized audio data.
   List<int> _normalizeAudio(Uint8List audioBuffer, int bitDepth) {
     final audioData = _convertBytesToAudioData(audioBuffer, bitDepth);
     final minAmplitude = audioData.reduce((a, b) => a < b ? a : b);
@@ -183,6 +239,12 @@ class Microphone {
     return audioData.map((e) => ((e - minAmplitude) / normalizedDelta).round()).toList();
   }
 
+  /// Plays audio data.
+  /// 
+  /// Args:
+  ///   audioData (Uint8List): The audio data to play.
+  ///   sampleRate (int?): The sample rate of the audio data. Defaults to the instance's sample rate.
+  ///   bitDepth (int?): The bit depth of the audio data. Defaults to the instance's bit depth.
   Future<void> playAudio(Uint8List audioData,
       {int? sampleRate, int? bitDepth}) async {
     final tempDir = await getTemporaryDirectory();
@@ -200,6 +262,15 @@ class Microphone {
     }
   }
 
+  /// Converts PCM bytes to a WAV file format.
+  /// 
+  /// Args:
+  ///   pcmBytes (Uint8List): The PCM audio data.
+  ///   bitDepth (int): The bit depth of the audio data.
+  ///   sampleRate (int): The sample rate of the audio data.
+  /// 
+  /// Returns:
+  ///   Uint8List: The WAV file data.
   Uint8List _bytesToWav(Uint8List pcmBytes, int bitDepth, int sampleRate) {
     final output = BytesBuilder();
     try {
@@ -223,6 +294,9 @@ class Microphone {
     return output.toBytes();
   }
 
+  /// Converts a 32-bit integer to a list of 8-bit integers.
+  /// 
+  /// Args:
   Uint8List _uint32to8(int value) =>
       Uint8List.fromList([
         value & 0xFF,

@@ -1,3 +1,7 @@
+## 0.0.3
+
+* Minor fixes and a lot of documentation
+
 ## 0.0.2
 
 * Fixed metadata

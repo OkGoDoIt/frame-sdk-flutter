@@ -36,6 +36,10 @@ class Frame {
     motion = Motion(this);
   }
 
+  /// Gets the connected Bluetooth device.
+  /// 
+  /// Throws:
+  ///   Exception: If not connected to a Frame device.
   BrilliantDevice get bluetooth {
     if (_connectedDevice == null) {
       throw Exception("Not connected to Frame device");
@@ -43,8 +47,16 @@ class Frame {
     return _connectedDevice!;
   }
 
+  /// Checks if the device is connected.
   bool get isConnected => _connectedDevice?.isConnected ?? false;
 
+  /// Connects to the nearest Frame device.
+  /// 
+  /// Args:
+  ///   timeout (Duration?): The maximum time to wait for a connection. Defaults to 30 seconds.
+  /// 
+  /// Returns:
+  ///   Future<bool>: True if connected, false otherwise.
   Future<bool> connect(
       {Duration? timeout = const Duration(seconds: 30)}) async {
     bool wasConnected = isConnected;
@@ -79,6 +91,10 @@ class Frame {
     return isConnectedNow;
   }
 
+  /// Sets the time on the Frame device.
+  /// 
+  /// Args:
+  ///   checked (bool): Whether to wait for confirmation of successful execution. Defaults to false.
   Future<void> setTimeOnFrame({bool checked = false}) async {
     String utcUnixEpochTime =
         (DateTime.now().toUtc().millisecondsSinceEpoch ~/ 1000).toString();
@@ -94,6 +110,7 @@ class Frame {
     //_lastTimeSync = DateTime.now();
   }
 
+  /// Disconnects from the Frame device.
   Future<void> disconnect() async {
     if (_connectedDevice != null) {
       if (_connectedDevice!.isConnected) {
@@ -103,6 +120,7 @@ class Frame {
     }
   }
 
+  /// Ensures the Frame device is connected, establishing a connection if not.
   Future<void> ensureConnected() async {
     if (!isConnected) {
       if (!await connect()) {
@@ -121,11 +139,30 @@ class Frame {
 
   static const _chars =
       'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+
+  /// Generates a random string of the given length.
+  /// 
+  /// Args:
+  ///   length (int): The length of the random string.
+  /// 
+  /// Returns:
+  ///   String: The generated random string.
   String _generateRandomString(int length) {
     return String.fromCharCodes(List.generate(
         length, (_) => _chars.codeUnitAt(Random().nextInt(_chars.length))));
   }
 
+  /// Runs a Lua string on the device.
+  /// 
+  /// Args:
+  ///   luaString (String): The Lua code to execute.
+  ///   awaitPrint (bool): Whether to wait for a print statement from the Lua code. Defaults to false.
+  ///   checked (bool): Whether to wait for confirmation of successful execution. Defaults to false.
+  ///   timeout (Duration?): The maximum time to wait for execution.
+  ///   withoutHelpers (bool): Whether to run the Lua code without library helpers. Mainly used internally by the SDK to bootstrap additional functions. Defaults to false.
+  /// 
+  /// Returns:
+  ///   Future<String?>: The result of the Lua execution if `awaitPrint` is true.
   Future<String?> runLua(String luaString,
       {bool awaitPrint = false,
       bool checked = false,
@@ -164,6 +201,16 @@ class Frame {
     }
   }
 
+  /// Sends a Lua string to the device that is longer than the MTU limit.
+  /// 
+  /// Args:
+  ///   string (String): The Lua code to execute.
+  ///   awaitPrint (bool): Whether to wait for a print statement from the Lua code. Defaults to false.
+  ///   checked (bool): Whether to wait for confirmation of successful execution. Defaults to false.
+  ///   timeout (Duration?): The maximum time to wait for execution.
+  /// 
+  /// Returns:
+  ///   Future<String?>: The result of the Lua execution if `awaitPrint` is true.
   Future<String?> sendLongLua(String string,
       {bool awaitPrint = false,
       bool checked = false,
@@ -196,6 +243,13 @@ class Frame {
     return response;
   }
 
+  /// Evaluates a Lua expression on the device and returns the result.
+  /// 
+  /// Args:
+  ///   luaExpression (String): The Lua expression to evaluate.
+  /// 
+  /// Returns:
+  ///   Future<String>: The result of the evaluation.
   Future<String> evaluate(String luaExpression) async {
     await ensureConnected();
     final result =
@@ -203,6 +257,10 @@ class Frame {
     return result ?? '';
   }
 
+  /// Returns the battery level as a percentage between 1 and 100.
+  /// 
+  /// Returns:
+  ///   Future<int>: The battery level percentage.
   Future<int> getBatteryLevel() async {
     await ensureConnected();
     final response = await bluetooth.sendString("print(frame.battery_level())",
@@ -214,12 +272,36 @@ class Frame {
     }
   }
 
+  /// Delays execution on Frame for a given duration. Technically this sends a sleep command,
+  /// but it doesn't actually change the power mode. This function does not block, returning immediately.
+  /// 
+  /// Args:
+  ///   duration (Duration): The duration to sleep.
+  /// 
+  /// Throws:
+  ///   ArgumentError: If the duration is negative or zero.
   Future<void> delay(Duration duration) async {
     await ensureConnected();
     await bluetooth.sendString(
         "frame.sleep(${(duration.inMilliseconds / 1000.0).toStringAsFixed(3)})");
   }
 
+  /// Puts the Frame into sleep mode. There are two modes: normal and deep.
+  /// 
+  /// Normal sleep mode can still receive bluetooth data, and is essentially the same as
+  /// clearing the display and putting the camera in low power mode. The Frame will retain
+  /// the time and date, and any functions and variables will stay in memory.
+  /// 
+  /// Deep sleep mode saves additional power, but has more limitations. The Frame will not
+  /// retain the time and date, and any functions and variables will not stay in memory.
+  /// Bluetooth data will not be received. The only way to wake the Frame from deep sleep
+  /// is to tap it.
+  /// 
+  /// The difference in power usage is fairly low, so it's often best to use normal sleep
+  /// mode unless you need the extra power savings.
+  /// 
+  /// Args:
+  ///   deep (bool): If true, puts the Frame into deep sleep mode. Defaults to false.
   Future<void> sleep([bool deep = false]) async {
     await ensureConnected();
     if (deep) {
@@ -242,12 +324,24 @@ class Frame {
     }
   }
 
+  /// Prevents Frame from going to sleep while it's docked onto the charging cradle.
+  /// This can help during development where continuous power is needed, however may
+  /// degrade the display or cause burn-in if used for extended periods of time.
+  /// 
+  /// Args:
+  ///   value (bool): True to stay awake, False to allow sleep.
   Future<void> stayAwake(bool value) async {
     await ensureConnected();
     await runLua("frame.stay_awake(${value.toString().toLowerCase()})",
         checked: true);
   }
 
+  /// Injects a function into the global environment of the device. Used to push helper library functions to the device.
+  /// 
+  /// Args:
+  ///   name (String): The name of the function.
+  ///   function (String): The function code.
+  ///   version (String): The version of the function.
   Future<void> injectLibraryFunction(
       String name, String function, String version) async {
     final exists =
@@ -281,6 +375,7 @@ class Frame {
     }
   }
 
+  /// Injects all library functions into the global environment of the device.
   Future<void> injectAllLibraryFunctions() async {
     final libraryVersion =
         libraryFunctions.hashCode.toRadixString(35).substring(0, 6);
@@ -295,6 +390,13 @@ class Frame {
     await injectLibraryFunction("prntLng", libraryFunctions, libraryVersion);
   }
 
+  /// Escapes a string for use in Lua.
+  /// 
+  /// Args:
+  ///   string (String): The string to escape.
+  /// 
+  /// Returns:
+  ///   String: The escaped string.
   String escapeLuaString(String string) {
     return string
         .replaceAll("\\", "\\\\")
@@ -308,6 +410,11 @@ class Frame {
 
   StreamSubscription<Uint8List>? _wakeSubscription;
 
+  /// Runs a Lua function when the device wakes up from sleep. Can include Lua code to be run on Frame upon wake and/or a Dart callback to be run locally upon wake.
+  /// 
+  /// Args:
+  ///   luaScript (String?): The Lua script to run on wake.
+  ///   callback (Function?): The callback to run on wake.
   Future<void> runOnWake({String? luaScript, void Function()? callback}) async {
     if (_wakeSubscription != null) {
       _wakeSubscription!.cancel();
@@ -339,10 +446,22 @@ class Frame {
     }
   }
 
+  /// Gets the character code from a string at the specified position.
+  /// 
+  /// Args:
+  ///   string (String): The string to get the character code from.
+  ///   pos (int): The position of the character.
+  /// 
+  /// Returns:
+  ///   int: The character code.
   int getCharCodeFromStringAtPos(String string, int pos) {
     return string.codeUnitAt(pos);
   }
 
+  /// Gets the platform version.
+  /// 
+  /// Returns:
+  ///   Future<String?>: The platform version.
   Future<String?> getPlatformVersion() {
     return FrameSdkPlatform.instance.getPlatformVersion();
   }

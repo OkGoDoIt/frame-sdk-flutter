@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:ui';
 import 'frame_sdk.dart';
 
+/// Enum for text alignment options.
 enum Alignment2D {
   topLeft(Alignment.leading, Alignment.leading),
   topCenter(Alignment.leading, Alignment.center),
@@ -18,12 +19,14 @@ enum Alignment2D {
   final Alignment horizontal;
 }
 
+/// Enum for alignment options.
 enum Alignment {
   leading,
   center,
   trailing,
 }
 
+/// Enum for palette colors.
 enum PaletteColors {
   voidBlack(0, "VOID"),
   white(1, "WHITE"),
@@ -45,6 +48,8 @@ enum PaletteColors {
   const PaletteColors(this.paletteIndex, this.name);
   final int paletteIndex;
   final String name;
+
+  /// Returns the PaletteColor corresponding to the given index.
   static PaletteColors fromIndex(int index) {
     return PaletteColors.values.firstWhere(
       (color) => color.paletteIndex == index,
@@ -53,17 +58,21 @@ enum PaletteColors {
     );
   }
 
+  /// Operator overload to add an integer value to a PaletteColor.
   PaletteColors operator +(int value) => fromIndex(value);
 }
 
+/// Class for displaying text and graphics on the Frame display.
 class Display {
   final Frame frame;
   int _lineHeight = 60;
 
   Display(this.frame);
 
+  /// Gets the height of each line of text in pixels.
   int get lineHeight => _lineHeight;
 
+  /// Sets the height of each line of text in pixels.
   set lineHeight(int value) {
     if (value < 1) {
       throw ArgumentError("lineHeight must be a positive integer");
@@ -295,6 +304,16 @@ class Display {
 
   int charSpacing = 4;
 
+  /// Shows text on the display.
+  ///
+  /// Args:
+  ///   text (String): The text to display.
+  ///   x (int): The left pixel position to start the text. Defaults to 1.
+  ///   y (int): The top pixel position to start the text. Defaults to 1.
+  ///   maxWidth (int?): The maximum width for the text bounding box. Defaults to 640.
+  ///   maxHeight (int?): The maximum height for the text bounding box.
+  ///   color (PaletteColors?): The color of the text.
+  ///   align (Alignment2D): The alignment of the text. Defaults to Alignment2D.topLeft.
   Future<void> showText(String text,
       {int x = 1,
       int y = 1,
@@ -311,6 +330,16 @@ class Display {
         align: align);
   }
 
+  /// Writes text to the display buffer.
+  ///
+  /// Args:
+  ///   text (String): The text to write.
+  ///   x (int): The left pixel position to start the text. Defaults to 1.
+  ///   y (int): The top pixel position to start the text. Defaults to 1.
+  ///   maxWidth (int?): The maximum width for the text bounding box. Defaults to 640.
+  ///   maxHeight (int?): The maximum height for the text bounding box.
+  ///   color (PaletteColors?): The color of the text.
+  ///   align (Alignment2D): The alignment of the text. Defaults to Alignment2D.topLeft.
   Future<void> writeText(String text,
       {int x = 1,
       int y = 1,
@@ -327,6 +356,17 @@ class Display {
         align: align);
   }
 
+  /// Internal method to write text to the display buffer.
+  ///
+  /// Args:
+  ///   text (String): The text to write.
+  ///   show (bool): Whether to show the text immediately.
+  ///   x (int): The left pixel position to start the text. Defaults to 1.
+  ///   y (int): The top pixel position to start the text. Defaults to 1.
+  ///   maxWidth (int?): The maximum width for the text bounding box. Defaults to 640.
+  ///   maxHeight (int?): The maximum height for the text bounding box.
+  ///   color (PaletteColors?): The color of the text.
+  ///   align (Alignment2D): The alignment of the text. Defaults to Alignment2D.topLeft.
   Future<void> _writeText(
     String text,
     bool show, {
@@ -387,22 +427,26 @@ class Display {
     );
   }
 
+  /// Scrolls text on the display.
+  ///
+  /// Args:
+  ///   text (String): The text to scroll.
+  ///   linesPerFrame (int): The number of lines to scroll per frame. Defaults to 5.
+  ///   delay (double): The delay between frames in seconds. Defaults to 0.12.
+  ///   textColor (PaletteColors?): The color of the text.
   Future<void> scrollText(String text,
       {int linesPerFrame = 5,
       double delay = 0.12,
-      PaletteColors? textColor,
-      PaletteColors? backgroundColor}) async {
+      PaletteColors? textColor}) async {
     text = wrapText(text, 640);
     final totalHeight = getTextHeight(text);
     if (totalHeight < 400) {
-      await writeText(text);
+      await writeText(text, x: 1, y:1, color: textColor);
       return;
     }
     String textColorName = textColor?.name ?? PaletteColors.white.name;
-    String backgroundColorIndex =
-        backgroundColor?.paletteIndex.toString() ?? "nil";
     await frame.runLua(
-      'scrollText("${frame.escapeLuaString(text)}",$lineHeight,$totalHeight,$linesPerFrame,$delay,"$textColorName",$backgroundColorIndex,$charSpacing)',
+      'scrollText("${frame.escapeLuaString(text)}",$lineHeight,$totalHeight,$linesPerFrame,$delay,"$textColorName",$charSpacing)',
       checked: true,
       timeout: Duration(
         seconds: (totalHeight / linesPerFrame * (delay + 0.1) + 5).toInt(),
@@ -410,6 +454,14 @@ class Display {
     );
   }
 
+  /// Wraps text to fit within a given width.
+  ///
+  /// Args:
+  ///   text (String): The text to wrap.
+  ///   maxWidth (int): The maximum width for the text bounding box.
+  ///
+  /// Returns:
+  ///   String: The wrapped text.
   String wrapText(String text, int maxWidth) {
     final lines = text.split("\n");
     var output = "";
@@ -437,11 +489,25 @@ class Display {
     return output.trimRight();
   }
 
+  /// Calculates the total height of the given text in pixels.
+  ///
+  /// Args:
+  ///   text (String): The text to calculate the height for.
+  ///
+  /// Returns:
+  ///   int: The total height of the text in pixels.
   int getTextHeight(String text) {
     final numLines = text.split("\n").length;
     return numLines * lineHeight;
   }
 
+  /// Calculates the width of the given text in pixels.
+  ///
+  /// Args:
+  ///   text (String): The text to calculate the width for.
+  ///
+  /// Returns:
+  ///   int: The width of the text in pixels.
   int getTextWidth(String text) {
     var width = 0;
     for (final char in text.runes) {
@@ -450,10 +516,12 @@ class Display {
     return width;
   }
 
+  /// Shows the display buffer on the screen.
   Future<void> show() async {
     await frame.runLua("frame.display.show()", checked: true);
   }
 
+  /// Clears the display buffer.
   Future<void> clear() async {
     await frame.runLua(
       'frame.display.text(" ",1,1);frame.display.show()',
@@ -461,6 +529,11 @@ class Display {
     );
   }
 
+  /// Sets a custom color in the palette.
+  ///
+  /// Args:
+  ///   paletteIndex (PaletteColors): The palette index to set the color for.
+  ///   newColor (Color): The new color to set.
   Future<void> setPalette(PaletteColors paletteIndex, Color newColor) async {
     colorPaletteMapping[paletteIndex] = newColor;
     await frame.runLua(
@@ -468,11 +541,30 @@ class Display {
         checked: true);
   }
 
+  /// Generates Lua code to draw a rectangle.
+  ///
+  /// Args:
+  ///   x (int): The left pixel position of the rectangle.
+  ///   y (int): The top pixel position of the rectangle.
+  ///   w (int): The width of the rectangle.
+  ///   h (int): The height of the rectangle.
+  ///   color (PaletteColors): The color of the rectangle.
+  ///
+  /// Returns:
+  ///   String: The Lua code to draw the rectangle.
   String _drawRectLua(int x, int y, int w, int h, PaletteColors color) {
     w = (w ~/ 8) * 8;
     return 'frame.display.bitmap($x,$y,$w,2,${color.paletteIndex},string.rep("\\xFF",${(w ~/ 8) * h}))';
   }
 
+  /// Draws a rectangle on the display.
+  ///
+  /// Args:
+  ///   x (int): The left pixel position of the rectangle.
+  ///   y (int): The top pixel position of the rectangle.
+  ///   w (int): The width of the rectangle.
+  ///   h (int): The height of the rectangle.
+  ///   color (PaletteColors): The color of the rectangle.
   Future<void> drawRect(int x, int y, int w, int h, PaletteColors color) async {
     await frame.runLua(
       _drawRectLua(x, y, w, h, color),
@@ -480,6 +572,16 @@ class Display {
     );
   }
 
+  /// Draws a filled rectangle with a border on the display.
+  ///
+  /// Args:
+  ///   x (int): The left pixel position of the rectangle.
+  ///   y (int): The top pixel position of the rectangle.
+  ///   w (int): The width of the rectangle.
+  ///   h (int): The height of the rectangle.
+  ///   borderWidth (int): The width of the border.
+  ///   borderColor (PaletteColors): The color of the border.
+  ///   fillColor (PaletteColors): The fill color of the rectangle.
   Future<void> drawRectFilled(
     int x,
     int y,
@@ -497,7 +599,7 @@ class Display {
         borderWidth = 8;
       }
     } else {
-      luaToSend += _drawRectLua(x, y, w, h, fillColor);
+      await frame.runLua(_drawRectLua(x, y, w, h, fillColor), checked: true);
       return;
     }
 

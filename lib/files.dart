@@ -4,12 +4,22 @@ import 'package:logging/logging.dart';
 
 import 'frame_sdk.dart';
 
+/// A class to handle file operations on the Frame device.
 class Files {
   final Frame frame;
   final logger = Logger('Files');
 
   Files(this.frame);
 
+  /// Writes data to a file on the Frame device.
+  ///
+  /// Args:
+  ///   path (String): The full filename to write on the Frame.
+  ///   data (dynamic): The data to write to the file. Must be either a String or Uint8List.
+  ///   checked (bool, optional): If true, each step of writing will wait for acknowledgement from the Frame before continuing. Defaults to false.
+  ///
+  /// Throws:
+  ///   ArgumentError: If the data is not a String or Uint8List.
   Future<void> writeFile(String path, dynamic data,
       {bool checked = false}) async {
     if (data is String) {
@@ -20,6 +30,15 @@ class Files {
     await _writeFileRawBytes(path, data as Uint8List, checked: checked);
   }
 
+  /// Writes raw bytes to a file on the Frame device.
+  ///
+  /// Args:
+  ///   path (String): The full filename to write on the Frame.
+  ///   data (Uint8List): The data to write to the file as bytes.
+  ///   checked (bool, optional): If true, each step of writing will wait for acknowledgement from the Frame before continuing. Defaults to false.
+  ///
+  /// Throws:
+  ///   Exception: If the file cannot be opened, written to, or closed.
   Future<void> _writeFileRawBytes(String path, Uint8List data,
       {bool checked = false}) async {
     await frame.runLua(
@@ -71,6 +90,13 @@ class Files {
     );
   }
 
+  /// Checks if a file exists on the Frame device.
+  ///
+  /// Args:
+  ///   path (String): The full path to the file to check.
+  ///
+  /// Returns:
+  ///   Future<bool>: True if the file exists, false otherwise.
   Future<bool> fileExists(String path) async {
     final String? response = await frame.bluetooth.sendString(
       'r=frame.file.open("$path","read");print("o");r:close()',
@@ -79,6 +105,13 @@ class Files {
     return response == "o";
   }
 
+  /// Deletes a file on the Frame device.
+  ///
+  /// Args:
+  ///   path (String): The full path to the file to delete.
+  ///
+  /// Returns:
+  ///   Future<bool>: True if the file was deleted, false if it didn't exist or failed to delete.
   Future<bool> deleteFile(String path) async {
     final String? response = await frame.bluetooth.sendString(
       'frame.file.remove("$path");print("d")',
@@ -87,6 +120,16 @@ class Files {
     return response == "d";
   }
 
+  /// Reads a file from the Frame device.
+  ///
+  /// Args:
+  ///   path (String): The full filename to read on the Frame.
+  ///
+  /// Returns:
+  ///   Future<Uint8List>: The content of the file as bytes.
+  ///
+  /// Raises:
+  ///   Exception: If the file does not exist.
   Future<Uint8List> readFile(String path) async {
     frame.bluetooth.sendString('printCompleteFile("$path")');
     final Uint8List result = await frame.bluetooth.waitForData();

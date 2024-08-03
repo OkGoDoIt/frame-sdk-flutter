@@ -12,6 +12,7 @@ final _log = Logger("Bluetooth");
 
 const _frameDataPrefix = 0x01;
 
+/// Enum representing different types of frame data prefixes.
 enum FrameDataTypePrefixes {
   longData(0x01),
   longDataEnd(0x02),
@@ -30,6 +31,7 @@ enum FrameDataTypePrefixes {
   String get valueAsHex => value.toRadixString(16).padLeft(2, '0');
 }
 
+/// Exception class for Brilliant Bluetooth errors.
 class BrilliantBluetoothException implements Exception {
   final String msg;
   const BrilliantBluetoothException(this.msg);
@@ -37,12 +39,14 @@ class BrilliantBluetoothException implements Exception {
   String toString() => 'BrilliantBluetoothException: $msg';
 }
 
+/// Enum representing the connection state of a Brilliant device.
 enum BrilliantConnectionState {
   connected,
   dfuConnected,
   disconnected,
 }
 
+/// Class representing a scanned Brilliant device.
 class BrilliantScannedDevice {
   BluetoothDevice device;
   int? rssi;
@@ -53,6 +57,7 @@ class BrilliantScannedDevice {
   });
 }
 
+/// Class representing a Brilliant device.
 class BrilliantDevice {
   BluetoothDevice device;
   BrilliantConnectionState state;
@@ -77,10 +82,13 @@ class BrilliantDevice {
     this.logDebugging = false,
   });
 
+  /// Checks if the device is connected.
   bool get isConnected => state == BrilliantConnectionState.connected;
 
+  /// Returns the device ID.
   String get id => device.remoteId.toString();
 
+  /// Stream of connection state changes for the device.
   Stream<BrilliantDevice> get connectionState {
     return FlutterBluePlus.events.onConnectionStateChanged
         .where((event) =>
@@ -109,6 +117,7 @@ class BrilliantDevice {
     });
   }
 
+  /// Handles string response parts from the device.
   Stream<String> handleStringResponsePart(
       Stream<OnCharacteristicReceivedEvent> source) async* {
     Uint8List? ongoingPrintResponse;
@@ -164,6 +173,7 @@ class BrilliantDevice {
     }
   }
 
+  /// Handles data response parts from the device.
   Stream<Uint8List> handleDataResponsePart(
       Stream<OnCharacteristicReceivedEvent> source) async* {
     Uint8List? ongoingDataResponse;
@@ -260,24 +270,28 @@ class BrilliantDevice {
     }
   }
 
+  /// Stream of string responses from the device.
   Stream<String> get stringResponse {
     return handleStringResponsePart(FlutterBluePlus
         .events.onCharacteristicReceived
         .where((event) => event.value[0] != _frameDataPrefix));
   }
 
+  /// Stream of data responses from the device.
   Stream<Uint8List> get dataResponse {
     return handleDataResponsePart(FlutterBluePlus
         .events.onCharacteristicReceived
         .where((event) => event.value[0] == _frameDataPrefix));
   }
 
+  /// Gets data of a specific type from the device.
   Stream<Uint8List> getDataOfType(FrameDataTypePrefixes dataType) {
     return dataResponse
         .where((event) => event[0] == dataType.value)
         .map((event) => Uint8List.fromList(event.sublist(1)));
   }
 
+  /// Disconnects the device.
   Future<void> disconnect() async {
     _log.info("Disconnecting");
     try {
@@ -285,18 +299,21 @@ class BrilliantDevice {
     } catch (_) {}
   }
 
+  /// Sends a break signal to the device.
   Future<void> sendBreakSignal() async {
     _log.info("Sending break signal");
     await sendString("\x03", awaitResponse: false);
     await Future.delayed(const Duration(milliseconds: 200));
   }
 
+  /// Sends a reset signal to the device.
   Future<void> sendResetSignal() async {
     _log.info("Sending reset signal");
     await sendString("\x04", awaitResponse: false);
     await Future.delayed(const Duration(milliseconds: 200));
   }
 
+  /// Sends a string to the device.
   Future<String?> sendString(
     String string, {
     bool awaitResponse = false,
@@ -342,6 +359,7 @@ class BrilliantDevice {
     }
   }
 
+  /// Waits for a specific string from the device.
   Future<String> waitForString({String? match, Duration? timeout}) async {
     StreamSubscription<String>? subscription;
     Completer<String> completer = Completer();
@@ -381,6 +399,7 @@ class BrilliantDevice {
     return completer.future;
   }
 
+  /// Sends data to the device.
   Future<Uint8List?> sendData(Uint8List data,
       {bool awaitResponse = false, Duration? timeout}) async {
     try {
@@ -410,6 +429,7 @@ class BrilliantDevice {
     }
   }
 
+  /// Waits for data of a specific type from the device.
   Future<Uint8List> waitForDataOfType(FrameDataTypePrefixes dataType,
       {Duration? timeout}) async {
     StreamSubscription<Uint8List>? subscription;
@@ -440,6 +460,7 @@ class BrilliantDevice {
     return completer.future;
   }
 
+  /// Waits for any data from the device.
   Future<Uint8List> waitForData({Duration? timeout}) async {
     StreamSubscription<Uint8List>? subscription;
     Completer<Uint8List> completer = Completer();
@@ -466,6 +487,7 @@ class BrilliantDevice {
     return completer.future;
   }
 
+  /// Uploads a script to the device.
   Future<void> uploadScript(String fileName, String filePath) async {
     try {
       _log.info("Uploading script: $fileName");
@@ -520,6 +542,7 @@ class BrilliantDevice {
     }
   }
 
+  /// Updates the firmware of the device.
   Stream<double> updateFirmware(String filePath) async* {
     try {
       yield 0;
@@ -553,6 +576,7 @@ class BrilliantDevice {
     }
   }
 
+  /// Transfers a DFU file to the device.
   Stream<double> _transferDfuFile(Uint8List file, bool isInitFile) async* {
     Uint8List response;
 
@@ -651,6 +675,7 @@ class BrilliantDevice {
     _log.fine("DFU file sent");
   }
 
+  /// Sends control data for DFU.
   Future<Uint8List> _dfuSendControlData(Uint8List data) async {
     try {
       _log.fine("Sending ${data.length} bytes of DFU control data: $data");
@@ -667,6 +692,7 @@ class BrilliantDevice {
     }
   }
 
+  /// Sends packet data for DFU.
   Future<void> _dfuSendPacketData(Uint8List data) async {
     await _dfuPacket!.write(data, withoutResponse: true);
   }
@@ -680,6 +706,7 @@ class BrilliantBluetooth {
       Guid("7a230003-5475-a6a4-654c-8431f6ad49c4");
   static const _allowedDeviceNames = ["Frame", "Frame Update", "DFUTarg"];
 
+  /// Gets the nearest Frame device.
   static Future<BrilliantDevice> getNearestFrame() async {
     await FlutterBluePlus.stopScan();
     //await FlutterBluePlus.startScan();
@@ -717,6 +744,7 @@ class BrilliantBluetooth {
     return connect(device);
   }
 
+  /// Requests Bluetooth permission.
   static Future<void> requestPermission() async {
     try {
       await FlutterBluePlus.startScan();
@@ -727,6 +755,7 @@ class BrilliantBluetooth {
     }
   }
 
+  /// Scans for devices.
   static Stream<BrilliantScannedDevice> scan() async* {
     try {
       _log.info("Starting to scan for devices");
@@ -765,6 +794,7 @@ class BrilliantBluetooth {
     });
   }
 
+  /// Stops scanning for devices.
   static Future<void> stopScan() async {
     try {
       _log.info("Stopping scan for devices");
@@ -775,6 +805,7 @@ class BrilliantBluetooth {
     }
   }
 
+  /// Connects to a scanned device.
   static Future<BrilliantDevice> connect(BrilliantScannedDevice scanned) async {
     try {
       _log.info("Connecting");
@@ -802,6 +833,7 @@ class BrilliantBluetooth {
     }
   }
 
+  /// Reconnects to a device by UUID.
   static Future<BrilliantDevice> reconnect(String uuid) async {
     try {
       _log.info("Will re-connect to device: $uuid once found");
@@ -832,6 +864,7 @@ class BrilliantBluetooth {
     }
   }
 
+  /// Enables services on the device.
   static Future<BrilliantDevice> _enableServices(BluetoothDevice device) async {
     if (Platform.isAndroid) {
       await device.requestMtu(512);

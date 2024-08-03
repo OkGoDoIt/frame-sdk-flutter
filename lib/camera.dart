@@ -5,6 +5,7 @@ import 'package:frame_sdk/bluetooth.dart';
 import 'frame_sdk.dart';
 import 'package:image/image.dart';
 
+/// Enum representing the quality of the photo.
 enum PhotoQuality {
   low(10),
   medium(25),
@@ -15,6 +16,7 @@ enum PhotoQuality {
   final int value;
 }
 
+/// Enum representing the type of autofocus.
 enum AutoFocusType {
   average("AVERAGE", 1),
   centerWeighted("CENTER_WEIGHTED", 2),
@@ -25,6 +27,7 @@ enum AutoFocusType {
   final int exifValue;
 }
 
+/// Class representing the Camera.
 class Camera {
   final Frame frame;
   bool isAwake = true;
@@ -33,6 +36,18 @@ class Camera {
 
   bool autoProcessPhoto = true;
 
+  /// Takes a photo with the camera.
+  ///
+  /// Args:
+  ///   autofocusSeconds (int?): The number of seconds to autofocus. Defaults to 3.
+  ///   quality (PhotoQuality): The quality of the photo. Defaults to PhotoQuality.medium.
+  ///   autofocusType (AutoFocusType): The type of autofocus. Defaults to AutoFocusType.average.
+  ///
+  /// Returns:
+  ///   Future<Uint8List>: The photo as a byte array.
+  ///
+  /// Throws:
+  ///   Exception: If the photo capture fails.
   Future<Uint8List> takePhoto({
     int? autofocusSeconds = 3,
     PhotoQuality quality = PhotoQuality.medium,
@@ -60,6 +75,13 @@ class Camera {
     return imageBuffer;
   }
 
+  /// Saves a photo to a file.
+  ///
+  /// Args:
+  ///   filename (String): The name of the file to save the photo.
+  ///   autofocusSeconds (int): The number of seconds to autofocus. Defaults to 3.
+  ///   quality (PhotoQuality): The quality of the photo. Defaults to PhotoQuality.medium.
+  ///   autofocusType (AutoFocusType): The type of autofocus. Defaults to AutoFocusType.average.
   Future<void> savePhoto(
     String filename, {
     int autofocusSeconds = 3,
@@ -76,6 +98,14 @@ class Camera {
     await file.writeAsBytes(imageBuffer);
   }
 
+  /// Processes a photo to correct rotation and add metadata.
+  ///
+  /// Args:
+  ///   imageBuffer (Uint8List): The photo as a byte array.
+  ///   autofocusType (AutoFocusType?): The type of autofocus that was used to capture the photo.
+  ///
+  /// Returns:
+  ///   Uint8List: The processed photo as a byte array.
   Uint8List processPhoto(Uint8List imageBuffer, AutoFocusType? autofocusType) {
     ExifData exif = decodeJpgExif(imageBuffer) ?? ExifData();
 

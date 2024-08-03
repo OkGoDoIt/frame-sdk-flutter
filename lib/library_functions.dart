@@ -132,7 +132,7 @@ end
 function drawRect(x,y,width,height,color)
 	frame.display.bitmap(x,y,width,2,color,string.rep("\\xFF",math.floor(width/8*height)))
 end
-function scrollText(text, line_height, total_height, lines_per_frame, delay, text_color_name, background_color_index, letter_spacing)
+function scrollText(text, line_height, total_height, lines_per_frame, delay, text_color_name, letter_spacing)
 		local lines = {}
 		local line_count = 1
 		local start = 1
@@ -147,17 +147,10 @@ function scrollText(text, line_height, total_height, lines_per_frame, delay, tex
 				start = found_end + 1
 		end
 		local i = 0
-		local background_color_computed = 15
-		if background_color_index ~= nil then
-			background_color_computed = background_color_index
-		end
 		while i < total_height - (400 - line_height * 2) do
 				local start_time = frame.time.utc()
 				if i == 0 then
 					start_time = start_time + (2 * line_height / lines_per_frame * delay)
-				end
-				if background_color_index ~= nil then
-					drawRect(0, 0, 640, 400, background_color_index)
 				end
 				local first_line_index = math.floor(i / line_height) + 1
 				local first_line_offset = i % line_height
@@ -170,8 +163,8 @@ function scrollText(text, line_height, total_height, lines_per_frame, delay, tex
 								break
 						end
 				end
-				drawRect(1, 1, 640, line_height, background_color_computed)
-				drawRect(1, 400 - line_height, 640, line_height, background_color_computed)
+				drawRect(1, 1, 640, line_height, 15)
+				drawRect(1, 400 - line_height, 640, line_height, 15)
 				frame.display.show()
 				while frame.time.utc() - start_time < delay do
 				end
