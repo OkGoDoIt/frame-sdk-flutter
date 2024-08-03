@@ -1,6 +1,6 @@
 ## 0.0.3
 
-* Minor fixes and a lot of documentation
+* Minor fixes and a lot of documentation, should be working well enough to be considered beta
 
 ## 0.0.2
 

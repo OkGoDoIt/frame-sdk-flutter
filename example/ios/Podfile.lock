@@ -4,7 +4,7 @@ PODS:
   - Flutter (1.0.0)
   - flutter_blue_plus (0.0.1):
     - Flutter
-  - frame_sdk (0.0.1):
+  - frame_sdk (0.0.2):
     - Flutter
   - integration_test (0.0.1):
     - Flutter
@@ -43,7 +43,7 @@ SPEC CHECKSUMS:
   audio_session: 088d2483ebd1dc43f51d253d4a1c517d9a2e7207
   Flutter: e0871f40cf51350855a761d2e70bf5af5b9b5de7
   flutter_blue_plus: 4837da7d00cf5d441fdd6635b3a57f936778ea96
-  frame_sdk: b23c73fadbaf662d2caab916d68434abd203770d
+  frame_sdk: 5d4d7ba36cf53cfdb6aebf563dc0a69e7920a727
   integration_test: ce0a3ffa1de96d1a89ca0ac26fca7ea18a749ef4
   just_audio: baa7252489dbcf47a4c7cc9ca663e9661c99aafa
   path_provider_foundation: 2b6b4c569c0fb62ec74538f866245ac84301af46

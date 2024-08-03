@@ -42,7 +42,12 @@ class _MyAppState extends State<MyApp> {
     initPlatformState();
     frame = Frame();
 
-    runTests();
+    // Use a Future.delayed to run the tests after the widget has been built
+    Future.delayed(Duration.zero, () async {
+      await runExample();
+      await runTests();
+    
+    });
   }
 
   Future<void> runExample() async {
@@ -90,18 +95,22 @@ class _MyAppState extends State<MyApp> {
         align: Alignment2D.middleCenter);
     await frame.motion.waitForTap();
 
+    // Take photo with more control and save to app data directory
+    final appDir = await getApplicationDocumentsDirectory();
+    final photoPath = '${appDir.path}/frame-test-photo-1.jpg';
     // Take and save photo
     await frame.display
         .showText("Taking photo...", align: Alignment2D.middleCenter);
-    await frame.camera.savePhoto("frame-test-photo.jpg");
+    await frame.camera.savePhoto(photoPath);
     await frame.display
         .showText("Photo saved!", align: Alignment2D.middleCenter);
 
-    // Take photo with more control
-    await frame.camera.savePhoto("frame-test-photo-2.jpg",
+    final photoPath2 = '${appDir.path}/frame-test-photo-2.jpg';
+    await frame.camera.savePhoto(photoPath2,
         autofocusSeconds: 3,
         quality: PhotoQuality.high,
         autofocusType: AutoFocusType.centerWeighted);
+    _addLogMessage("Photo saved to: $photoPath");
 
     // Get raw photo bytes
     Uint8List photoBytes = await frame.camera.takePhoto(autofocusSeconds: 1);
@@ -112,9 +121,10 @@ class _MyAppState extends State<MyApp> {
         .showText("Say something...", align: Alignment2D.middleCenter);
 
     // Record audio to file
-    double length = await frame.microphone.saveAudioFile("test-audio.wav");
+    final audioPath = '${appDir.path}/test-audio.wav';
+    double length = await frame.microphone.saveAudioFile(audioPath);
     _addLogMessage(
-        "Recorded ${length.toStringAsFixed(1)} seconds: \"./test-audio.wav\"");
+        "Recorded ${length.toStringAsFixed(1)} seconds: \"$audioPath\"");
     await frame.display.showText(
         "Recorded ${length.toStringAsFixed(1)} seconds",
         align: Alignment2D.middleCenter);
@@ -123,8 +133,8 @@ class _MyAppState extends State<MyApp> {
     // Record audio to memory
     await frame.display
         .showText("Say something else...", align: Alignment2D.middleCenter);
-    Uint8List audioData =
-        await frame.microphone.recordAudio(maxLength: const Duration(seconds: 10));
+    Uint8List audioData = await frame.microphone
+        .recordAudio(maxLength: const Duration(seconds: 10));
     await frame.display.showText(
         "Recorded ${(audioData.length / frame.microphone.sampleRate.toDouble()).toStringAsFixed(1)} seconds of audio",
         align: Alignment2D.middleCenter);
@@ -257,6 +267,8 @@ class _MyAppState extends State<MyApp> {
     await frame.display.showText("Battery: ${await frame.getBatteryLevel()}%",
         align: Alignment2D.middleCenter);
 
+    await frame.files.deleteFile("main.lua");
+
     assertEqual("Evaluate 1", "1", await frame.evaluate("1"));
     assertEqual("Evaluate 2", "2", await frame.evaluate("2"));
     assertEqual("Evaluate 3", "3", await frame.evaluate("3"));
@@ -352,16 +364,16 @@ class _MyAppState extends State<MyApp> {
     // Test long send and receive
     int aCount = 2;
     String message = List.generate(aCount, (i) => "and $i, ").join();
-    String script = "message = '';${List.generate(aCount, (i) => "message = message .. 'and $i, '; ")
-            .join()}print(message)";
+    String script =
+        "message = '';${List.generate(aCount, (i) => "message = message .. 'and $i, '; ").join()}print(message)";
     assertEqual("Long send and receive lua (a=2)", message,
         await frame.runLua(script, awaitPrint: true));
 
     // Test longer send and receive
     aCount = 50;
     message = List.generate(aCount, (i) => "and $i, ").join();
-    script = "message = '';${List.generate(aCount, (i) => "message = message .. 'and $i, '; ")
-            .join()}print(message)";
+    script =
+        "message = '';${List.generate(aCount, (i) => "message = message .. 'and $i, '; ").join()}print(message)";
     assertEqual("Longer send and receive lua (a=50)", message,
         await frame.runLua(script, awaitPrint: true));
 
@@ -382,7 +394,8 @@ class _MyAppState extends State<MyApp> {
 
     // Test Files
 
-    var content = "Testing:\n${"test1... " * 200}\nTesting 2:\n${"test2\n" * 100}";
+    var content =
+        "Testing:\n${"test1... " * 200}\nTesting 2:\n${"test2\n" * 100}";
     await frame.files
         .writeFile("test.txt", utf8.encode(content), checked: true);
     var actualContent = await frame.files.readFile("test.txt");
