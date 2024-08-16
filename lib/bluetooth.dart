@@ -285,9 +285,13 @@ class BrilliantDevice {
   }
 
   /// Gets data of a specific type from the device.
-  Stream<Uint8List> getDataOfType(FrameDataTypePrefixes dataType) {
+  Stream<Uint8List> getDataOfType(FrameDataTypePrefixes dataType) =>
+      getDataWithPrefix(dataType.value);
+
+  /// Gets data of a specific type from the device.
+  Stream<Uint8List> getDataWithPrefix(int prefix) {
     return dataResponse
-        .where((event) => event[0] == dataType.value)
+        .where((event) => event[0] == prefix)
         .map((event) => Uint8List.fromList(event.sublist(1)));
   }
 
@@ -718,7 +722,7 @@ class BrilliantBluetooth {
         final filteredList = results
             .where((d) =>
                 d.advertisementData.serviceUuids.contains(_serviceUUID) &&
-                _allowedDeviceNames.contains(d.advertisementData.advName))
+                _allowedDeviceNames.any((name) => d.advertisementData.advName.startsWith(name)))
             .toList();
         if (filteredList.isNotEmpty) {
           completer.complete(filteredList);
@@ -822,6 +826,7 @@ class BrilliantBluetooth {
           .timeout(const Duration(seconds: 3));
 
       if (connectionState == BluetoothConnectionState.connected) {
+        if (Platform.isAndroid) await scanned.device.requestMtu(512);
         return await _enableServices(scanned.device);
       }
 
@@ -854,6 +859,7 @@ class BrilliantBluetooth {
       _log.info("Found reconnectable device: $uuid");
 
       if (connectionState == BluetoothConnectionState.connected) {
+        if (Platform.isAndroid) await device.requestMtu(512);
         return await _enableServices(device);
       }
 

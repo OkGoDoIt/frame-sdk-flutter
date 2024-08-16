@@ -1,7 +1,9 @@
 name: frame_sdk
 description: "The Flutter SDK for the Frame from Brilliant Labs"
-version: 0.0.3
+version: 0.0.4
 homepage: 'https://github.com/OkGoDoIt/frame-sdk-flutter'
+documentation: 'https://docs.brilliant.xyz/frame/building-apps-sdk/#flutter'
+
 
 environment:
   sdk: '>=3.4.4 <4.0.0'

@@ -91,6 +91,38 @@ class Frame {
     return isConnectedNow;
   }
 
+  /// Connects to a specific Frame device.
+  /// 
+  /// Args:
+  ///   deviceId (String): The ID of the device to connect to.
+  /// 
+  /// Returns:
+  ///   Future<bool>: True if connected, false otherwise.
+  Future<bool> connectToDevice(String deviceId) async {
+    bool wasConnected = isConnected;
+    if (_connectedDevice == null) {
+      _connectedDevice = await BrilliantBluetooth.reconnect(deviceId);
+    } else if (!_connectedDevice!.isConnected) {
+      _connectedDevice = await BrilliantBluetooth.reconnect(deviceId);
+    }
+    bool isConnectedNow = _connectedDevice?.isConnected ?? false;
+    if (!wasConnected && isConnectedNow) {
+      await bluetooth.sendBreakSignal();
+    }
+
+    if (!wasConnected && isConnectedNow) {
+      await bluetooth.sendBreakSignal();
+      bluetooth.getDataOfType(FrameDataTypePrefixes.debugPrint).listen((data) {
+        logger.info("Debug print: ${utf8.decode(data)}");
+      });
+      await injectAllLibraryFunctions();
+      await setTimeOnFrame(checked: true);
+      await runLua("is_awake=true", checked: true);
+    }
+
+    return isConnectedNow;
+  }
+
   /// Sets the time on the Frame device.
   /// 
   /// Args:
