@@ -1,6 +1,3 @@
-import 'bluetooth.dart';
-
-final String libraryFunctions = '''
 function prntLng(stringToPrint)
 	local mtu = frame.bluetooth.max_length()
 	local len = string.len(stringToPrint)
@@ -16,12 +13,13 @@ function prntLng(stringToPrint)
 			j = len
 		end
 		local chunk = string.sub(stringToPrint, i, j)
-		print("\\x${FrameDataTypePrefixes.longText.valueAsHex}"..chunk)
+		print("\x${FrameDataTypePrefixes.longText.valueAsHex}"..chunk)
 		chunkIndex = chunkIndex + 1
-		i = j + 1
-	end
-	print("\\x${FrameDataTypePrefixes.longTextEnd.valueAsHex}"..chunkIndex)
+		i = j + 1 
+	end 
+	print("\x${FrameDataTypePrefixes.longTextEnd.valueAsHex}"..chunkIndex)
 end
+
 function sendPartial(dataToSend, max_size)
 	local len = string.len(dataToSend)
 	local i = 1
@@ -33,7 +31,7 @@ function sendPartial(dataToSend, max_size)
 		end
 		local chunk = string.sub(dataToSend, i, j)
 		while true do
-			if pcall(frame.bluetooth.send, '\\x${FrameDataTypePrefixes.longData.valueAsHex}' .. chunk) then
+			if pcall(frame.bluetooth.send, '\x${FrameDataTypePrefixes.longData.valueAsHex}' .. chunk) then
 				break
 			end
 		end
@@ -42,6 +40,7 @@ function sendPartial(dataToSend, max_size)
 	end
 	return chunkIndex
 end
+
 function printCompleteFile(filename)
 	local mtu = frame.bluetooth.max_length() - 1
 	local f = frame.file.open(filename, "read")
@@ -59,7 +58,7 @@ function printCompleteFile(filename)
 		if string.len(new_chunk) == 512 then
 			chunk = chunk .. new_chunk
 		else
-			chunk = chunk .. new_chunk .. "\\n"
+			chunk = chunk .. new_chunk .. "\n"
 		end
 		
 		while string.len(chunk) > mtu - 4 do
@@ -67,19 +66,20 @@ function printCompleteFile(filename)
 			chunkIndex = chunkIndex + 1
 			chunk = string.sub(chunk, mtu - 3)
 			while true do
-				if pcall(frame.bluetooth.send, '\\x${FrameDataTypePrefixes.longData.valueAsHex}' .. chunk_to_send) then
+				if pcall(frame.bluetooth.send, '\x${FrameDataTypePrefixes.longData.valueAsHex}' .. chunk_to_send) then
 					break
 				end
 			end
 		end
 	end
 	while true do
-		if pcall(frame.bluetooth.send, '\\x${FrameDataTypePrefixes.longDataEnd.valueAsHex}' .. chunkIndex) then
+		if pcall(frame.bluetooth.send, '\x${FrameDataTypePrefixes.longDataEnd.valueAsHex}' .. chunkIndex) then
 			break
 		end
 	end
 	f:close()
 end
+
 function cameraCaptureAndSend(quality,autoExpTimeDelay,autofocusType)
 	local last_autoexp_time = 0
 	local state = 'EXPOSING'
@@ -103,7 +103,7 @@ function cameraCaptureAndSend(quality,autoExpTimeDelay,autofocusType)
 					state_time = frame.time.utc()
 					state = 'WAIT'
 			elseif state == 'WAIT' then
-					if frame.time.utc() > state_time + 0.5 then
+					if frame.time.utc() > state_time + 0.4 then
 							state = 'SEND'
 					end
 			elseif state == 'SEND' then
@@ -112,7 +112,7 @@ function cameraCaptureAndSend(quality,autoExpTimeDelay,autofocusType)
 							state = 'DONE'
 					else
 						while true do
-								if pcall(frame.bluetooth.send, '\\x${FrameDataTypePrefixes.photoData.valueAsHex}' .. i) then
+								if pcall(frame.bluetooth.send, '\x${FrameDataTypePrefixes.photoData.valueAsHex}' .. i) then
 										break
 								end
 								frame.sleep(0.01)
@@ -121,7 +121,7 @@ function cameraCaptureAndSend(quality,autoExpTimeDelay,autofocusType)
 					end
 			elseif state == 'DONE' then
 				while true do
-					if pcall(frame.bluetooth.send, '\\x${FrameDataTypePrefixes.photoDataEnd.valueAsHex}' .. chunkIndex) then
+					if pcall(frame.bluetooth.send, '\x${FrameDataTypePrefixes.photoDataEnd.valueAsHex}' .. chunkIndex) then
 						break
 					end
 				end
@@ -129,15 +129,17 @@ function cameraCaptureAndSend(quality,autoExpTimeDelay,autofocusType)
 			end
 	end
 end
+
 function drawRect(x,y,width,height,color)
-	frame.display.bitmap(x,y,width,2,color,string.rep("\\xFF",math.floor(width/8*height)))
+	frame.display.bitmap(x,y,width,2,color,string.rep("\xFF",math.floor(width/8*height)))
 end
+
 function scrollText(text, line_height, total_height, lines_per_frame, delay, text_color_name, letter_spacing)
 		local lines = {}
 		local line_count = 1
 		local start = 1
 		while true do
-				local found_start, found_end = string.find(text, "\\n", start)
+				local found_start, found_end = string.find(text, "\n", start)
 				if not found_start then
 						table.insert(lines, string.sub(text, start))
 						break
@@ -174,6 +176,7 @@ function scrollText(text, line_height, total_height, lines_per_frame, delay, tex
 		while frame.time.utc() < extra_time do
 		end
 end
+
 function microphoneRecordAndSend(sample_rate, bit_depth, max_time_in_seconds)
 		frame.microphone.start{sample_rate=sample_rate, bit_depth=bit_depth}
 		local end_time = frame.time.utc() + 60 * 60 * 24
@@ -195,11 +198,11 @@ function microphoneRecordAndSend(sample_rate, bit_depth, max_time_in_seconds)
 				if s ~= '' then
 						while true do
 								if max_time_in_seconds ~= nil then
-										if pcall(frame.bluetooth.send, '\\${FrameDataTypePrefixes.longData.valueAsHex}' .. s) then
+										if pcall(frame.bluetooth.send, '\${FrameDataTypePrefixes.longData.valueAsHex}' .. s) then
 												break
 										end
 								else
-										if pcall(frame.bluetooth.send, '\\${FrameDataTypePrefixes.micData.valueAsHex}' .. s) then
+										if pcall(frame.bluetooth.send, '\${FrameDataTypePrefixes.micData.valueAsHex}' .. s) then
 												break
 										end
 								end
@@ -208,8 +211,7 @@ function microphoneRecordAndSend(sample_rate, bit_depth, max_time_in_seconds)
 				end
 		end
 		if max_time_in_seconds ~= nil then
-				frame.bluetooth.send('\\${FrameDataTypePrefixes.longDataEnd.valueAsHex}' .. tostring(chunk_count))
+				frame.bluetooth.send('\${FrameDataTypePrefixes.longDataEnd.valueAsHex}' .. tostring(chunk_count))
 		end
 		frame.microphone.stop()
-end
-''';
+end 

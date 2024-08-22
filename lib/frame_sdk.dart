@@ -1,13 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
-import 'dart:typed_data';
 
+import 'package:flutter/services.dart';
 import 'package:logging/logging.dart';
 
 import 'frame_sdk_platform_interface.dart';
 import 'bluetooth.dart';
-import 'library_functions.dart';
 import 'files.dart';
 import 'microphone.dart';
 import 'camera.dart';
@@ -80,6 +79,17 @@ class Frame {
     bool isConnectedNow = _connectedDevice?.isConnected ?? false;
 
     if (!wasConnected && isConnectedNow) {
+      bluetooth.stringResponse.listen((data) {
+        if (data.startsWith("[")) {
+          if (data.contains("break signal")) {
+            logger.info("Frame break signal: $data");
+          } else if (data.contains("cannot open file")) {
+            logger.info("Frame error: $data");
+          } else {
+            logger.warning("Frame error: $data");
+          }
+        }
+      });
       await bluetooth.sendBreakSignal();
       bluetooth.getDataOfType(FrameDataTypePrefixes.debugPrint).listen((data) {
         logger.info("Debug print: ${utf8.decode(data)}");
@@ -234,6 +244,7 @@ class Frame {
           awaitPrint: awaitPrint, checked: checked, timeout: timeout);
     } else {
       // the string is too long to send without helpers
+      logger.severe("The string is too long to send without library helpers");
       throw const BrilliantBluetoothException(
           "The string is too long to send without library helpers");
     }
@@ -404,7 +415,8 @@ class Frame {
       }
 
       logger.info("Writing file /lib-$version/$name.lua");
-      await files.writeFile("/lib-$version/$name.lua", utf8.encode(function),
+      await files.writeFile("/lib-$version/$name.lua",
+          utf8.encode(function.replaceAll("\t", "").replaceAll("\n\n", "\n")),
           checked: true);
 
       logger.info("Requiring lib-$version/$name");
@@ -417,13 +429,25 @@ class Frame {
     }
   }
 
+  late String _frameLib;
+
   /// Injects all library functions into the global environment of the device.
   Future<void> injectAllLibraryFunctions() async {
     if (!useLibrary) {
       return;
     }
+    _frameLib = await rootBundle.loadString('packages/frame_sdk/assets/frameLib.lua');
+    _frameLib = _frameLib.replaceAll("\t", "").replaceAll("\n\n", "\n");
+
+    for (var prefix in FrameDataTypePrefixes.values) {
+      // ignore: prefer_interpolation_to_compose_strings
+      String placeholder = r'${FrameDataTypePrefixes.' + prefix.name + '.valueAsHex}';
+      _frameLib = _frameLib.replaceAll(placeholder, prefix.valueAsHex);
+    }
+
+    
     final libraryVersion =
-        libraryFunctions.hashCode.toRadixString(35).substring(0, 6);
+        _frameLib.hashCode.toRadixString(35).substring(0, 5);
     final response = await bluetooth.sendString(
         "frame.file.mkdir(\"lib-$libraryVersion\");print(\"c\")",
         awaitResponse: true);
@@ -432,7 +456,7 @@ class Frame {
     } else {
       logger.info("Did not create lib directory: $response");
     }
-    await injectLibraryFunction("prntLng", libraryFunctions, libraryVersion);
+    await injectLibraryFunction("prntLng", _frameLib, libraryVersion);
   }
 
   /// Escapes a string for use in Lua.

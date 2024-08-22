@@ -46,9 +46,8 @@ class Files {
       checked: checked,
       withoutHelpers: true,
     );
-
     await frame.runLua(
-      'frame.bluetooth.receive_callback((function(d)if d[1]==2 then w:write(d.sublist(2))end;end))',
+      'frame.bluetooth.receive_callback((function(d)if string.byte(d,1)==2 then w:write(string.sub(d,2)) end end))',
       checked: checked,
       withoutHelpers: true,
     );
@@ -62,18 +61,16 @@ class Files {
       if (nextChunkLength == 0) break;
 
       if (nextChunkLength <= 0) {
-        logger.warning(
-            "MTU too small to write file, or escape character at end of chunk");
-        throw Exception(
-            "MTU too small to write file, or escape character at end of chunk");
+        logger.warning("MTU too small to write file");
+        throw Exception("MTU too small to write file");
       }
 
-      await frame.bluetooth.sendData(
-          Uint8List.fromList([2] + data.sublist(currentIndex, currentIndex + nextChunkLength)));
+      await frame.bluetooth.sendData(Uint8List.fromList(
+          [2] + data.sublist(currentIndex, currentIndex + nextChunkLength)));
 
       currentIndex += nextChunkLength;
       if (currentIndex < data.length) {
-        await Future.delayed(const Duration(milliseconds: 150));
+        await Future.delayed(const Duration(milliseconds: 100));
       }
     }
 

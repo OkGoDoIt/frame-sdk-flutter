@@ -1,3 +1,8 @@
+# 0.0.6
+* Fix for file sending
+* Clean up of lua library assets
+* Better logging of Frame lua errors
+
 ## 0.0.5
 * Fix grey color in Display.dart's PaletteColors
 * Added ability to disable lua library injection, by setting frame.useLibrary to false before connecting
