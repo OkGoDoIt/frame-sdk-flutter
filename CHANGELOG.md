@@ -1,3 +1,6 @@
+# 0.0.7
+* Added connectToExistingBleDevice
+
 # 0.0.6
 * Fix for file sending
 * Clean up of lua library assets

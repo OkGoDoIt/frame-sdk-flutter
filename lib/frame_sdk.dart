@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:flutter/services.dart';
+import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:logging/logging.dart';
 
 import 'frame_sdk_platform_interface.dart';
@@ -136,6 +137,11 @@ class Frame {
     }
 
     return isConnectedNow;
+  }
+
+  Future<bool> connectToExistingBleDevice(BluetoothDevice btdevice) async {
+    _connectedDevice = await BrilliantBluetooth.enableServices(btdevice);
+    return _connectedDevice!.isConnected;
   }
 
   /// Sets the time on the Frame device.

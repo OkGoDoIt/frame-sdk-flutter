@@ -99,7 +99,7 @@ class BrilliantDevice {
       if (event.connectionState == BluetoothConnectionState.connected) {
         _log.info("Connection state stream: Connected");
         try {
-          return await BrilliantBluetooth._enableServices(event.device);
+          return await BrilliantBluetooth.enableServices(event.device);
         } catch (error) {
           _log.warning("Connection state stream: Invalid due to $error");
           return Future.error(BrilliantBluetoothException(error.toString()));
@@ -827,7 +827,7 @@ class BrilliantBluetooth {
 
       if (connectionState == BluetoothConnectionState.connected) {
         if (Platform.isAndroid) await scanned.device.requestMtu(512);
-        return await _enableServices(scanned.device);
+        return await enableServices(scanned.device);
       }
 
       throw ("${scanned.device.disconnectReason?.description}");
@@ -860,7 +860,7 @@ class BrilliantBluetooth {
 
       if (connectionState == BluetoothConnectionState.connected) {
         if (Platform.isAndroid) await device.requestMtu(512);
-        return await _enableServices(device);
+        return await enableServices(device);
       }
 
       throw ("${device.disconnectReason?.description}");
@@ -871,7 +871,7 @@ class BrilliantBluetooth {
   }
 
   /// Enables services on the device.
-  static Future<BrilliantDevice> _enableServices(BluetoothDevice device) async {
+  static Future<BrilliantDevice> enableServices(BluetoothDevice device) async {
     if (Platform.isAndroid) {
       await device.requestMtu(512);
     }

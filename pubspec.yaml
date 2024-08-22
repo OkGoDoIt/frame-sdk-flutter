@@ -1,6 +1,6 @@
 name: frame_sdk
 description: "The Flutter SDK for the Frame from Brilliant Labs"
-version: 0.0.6
+version: 0.0.7
 homepage: 'https://github.com/OkGoDoIt/frame-sdk-flutter'
 documentation: 'https://docs.brilliant.xyz/frame/building-apps-sdk/#flutter'
 
