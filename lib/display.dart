@@ -30,7 +30,7 @@ enum Alignment {
 enum PaletteColors {
   voidBlack(0, "VOID"),
   white(1, "WHITE"),
-  gray(2, "GRAY"),
+  grey(2, "GREY"),
   red(3, "RED"),
   pink(4, "PINK"),
   darkBrown(5, "DARKBROWN"),
@@ -83,7 +83,7 @@ class Display {
   static final Map<PaletteColors, Color> colorPaletteMapping = {
     PaletteColors.voidBlack: const Color.fromARGB(255, 0, 0, 0),
     PaletteColors.white: const Color.fromARGB(255, 255, 255, 255),
-    PaletteColors.gray: const Color.fromARGB(255, 157, 157, 157),
+    PaletteColors.grey: const Color.fromARGB(255, 157, 157, 157),
     PaletteColors.red: const Color.fromARGB(255, 190, 38, 51),
     PaletteColors.pink: const Color.fromARGB(255, 224, 111, 139),
     PaletteColors.darkBrown: const Color.fromARGB(255, 73, 60, 43),
@@ -438,6 +438,9 @@ class Display {
       {int linesPerFrame = 5,
       double delay = 0.12,
       PaletteColors? textColor}) async {
+    if (!frame.useLibrary) {
+      throw Exception("Cannot call scrollText without library helpers");
+    }
     text = wrapText(text, 640);
     final totalHeight = getTextHeight(text);
     if (totalHeight < 400) {

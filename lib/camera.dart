@@ -53,6 +53,9 @@ class Camera {
     PhotoQuality quality = PhotoQuality.medium,
     AutoFocusType autofocusType = AutoFocusType.average,
   }) async {
+    if (!frame.useLibrary) {
+      throw Exception("Cannot take photo via SDK without library helpers");
+    }
     if (!isAwake) {
       await frame.runLua("frame.camera.wake()", checked: true);
       await Future.delayed(const Duration(milliseconds: 500));

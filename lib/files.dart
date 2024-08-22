@@ -48,14 +48,14 @@ class Files {
     );
 
     await frame.runLua(
-      'frame.bluetooth.receive_callback((function(d)w:write(d)end))',
+      'frame.bluetooth.receive_callback((function(d)if d[1]==2 then w:write(d.sublist(2))end;end))',
       checked: checked,
       withoutHelpers: true,
     );
 
     int currentIndex = 0;
     while (currentIndex < data.length) {
-      final int maxPayload = (frame.bluetooth.maxDataLength ?? 0) - 2;
+      final int maxPayload = (frame.bluetooth.maxDataLength ?? 0) - 3;
       final int nextChunkLength = data.length - currentIndex > maxPayload
           ? maxPayload
           : data.length - currentIndex;
@@ -68,8 +68,8 @@ class Files {
             "MTU too small to write file, or escape character at end of chunk");
       }
 
-      await frame.bluetooth
-          .sendData(data.sublist(currentIndex, currentIndex + nextChunkLength));
+      await frame.bluetooth.sendData(
+          Uint8List.fromList([2] + data.sublist(currentIndex, currentIndex + nextChunkLength)));
 
       currentIndex += nextChunkLength;
       if (currentIndex < data.length) {
@@ -131,6 +131,9 @@ class Files {
   /// Raises:
   ///   Exception: If the file does not exist.
   Future<Uint8List> readFile(String path) async {
+    if (!frame.useLibrary) {
+      throw Exception("Cannot read file via SDK without library helpers");
+    }
     frame.bluetooth.sendString('printCompleteFile("$path")');
     final Uint8List result = await frame.bluetooth.waitForData();
     // remove any trailing newlines if there are any

@@ -66,6 +66,9 @@ class Microphone {
     Duration? silenceCutoffLength = const Duration(seconds: 3),
     Duration maxLength = const Duration(seconds: 30),
   }) async {
+    if (!frame.useLibrary) {
+      throw Exception("Cannot record audio via SDK without library helpers");
+    }
     await frame.runLua('frame.microphone.stop()', checked: true);
 
     if (silenceCutoffLength != null) {

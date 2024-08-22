@@ -1,3 +1,7 @@
+## 0.0.5
+* Fix grey color in Display.dart's PaletteColors
+* Added ability to disable lua library injection, by setting frame.useLibrary to false before connecting
+
 ## 0.0.4
 
 * fixed connecting to latest firmware v24.227.1307

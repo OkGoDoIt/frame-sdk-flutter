@@ -26,6 +26,7 @@ class Frame {
   late final Motion motion;
   int timesToRetry = 1;
   int? _retryCount;
+  bool useLibrary = true;
   // DateTime _lastTimeSync = DateTime.now();
 
   Frame() {
@@ -37,7 +38,7 @@ class Frame {
   }
 
   /// Gets the connected Bluetooth device.
-  /// 
+  ///
   /// Throws:
   ///   Exception: If not connected to a Frame device.
   BrilliantDevice get bluetooth {
@@ -51,10 +52,10 @@ class Frame {
   bool get isConnected => _connectedDevice?.isConnected ?? false;
 
   /// Connects to the nearest Frame device.
-  /// 
+  ///
   /// Args:
   ///   timeout (Duration?): The maximum time to wait for a connection. Defaults to 30 seconds.
-  /// 
+  ///
   /// Returns:
   ///   Future<bool>: True if connected, false otherwise.
   Future<bool> connect(
@@ -83,7 +84,9 @@ class Frame {
       bluetooth.getDataOfType(FrameDataTypePrefixes.debugPrint).listen((data) {
         logger.info("Debug print: ${utf8.decode(data)}");
       });
-      await injectAllLibraryFunctions();
+      if (useLibrary) {
+        await injectAllLibraryFunctions();
+      }
       await setTimeOnFrame(checked: true);
       await runLua("is_awake=true", checked: true);
     }
@@ -92,10 +95,10 @@ class Frame {
   }
 
   /// Connects to a specific Frame device.
-  /// 
+  ///
   /// Args:
   ///   deviceId (String): The ID of the device to connect to.
-  /// 
+  ///
   /// Returns:
   ///   Future<bool>: True if connected, false otherwise.
   Future<bool> connectToDevice(String deviceId) async {
@@ -115,7 +118,9 @@ class Frame {
       bluetooth.getDataOfType(FrameDataTypePrefixes.debugPrint).listen((data) {
         logger.info("Debug print: ${utf8.decode(data)}");
       });
-      await injectAllLibraryFunctions();
+      if (useLibrary) {
+        await injectAllLibraryFunctions();
+      }
       await setTimeOnFrame(checked: true);
       await runLua("is_awake=true", checked: true);
     }
@@ -124,7 +129,7 @@ class Frame {
   }
 
   /// Sets the time on the Frame device.
-  /// 
+  ///
   /// Args:
   ///   checked (bool): Whether to wait for confirmation of successful execution. Defaults to false.
   Future<void> setTimeOnFrame({bool checked = false}) async {
@@ -138,7 +143,8 @@ class Frame {
         "Setting time to $utcUnixEpochTime and time zone to $timeZoneOffset");
     await runLua(
         "frame.time.utc($utcUnixEpochTime);frame.time.zone('$timeZoneOffset')",
-        checked: checked, withoutHelpers: true);
+        checked: checked,
+        withoutHelpers: true);
     //_lastTimeSync = DateTime.now();
   }
 
@@ -173,10 +179,10 @@ class Frame {
       'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
 
   /// Generates a random string of the given length.
-  /// 
+  ///
   /// Args:
   ///   length (int): The length of the random string.
-  /// 
+  ///
   /// Returns:
   ///   String: The generated random string.
   String _generateRandomString(int length) {
@@ -185,14 +191,14 @@ class Frame {
   }
 
   /// Runs a Lua string on the device.
-  /// 
+  ///
   /// Args:
   ///   luaString (String): The Lua code to execute.
   ///   awaitPrint (bool): Whether to wait for a print statement from the Lua code. Defaults to false.
   ///   checked (bool): Whether to wait for confirmation of successful execution. Defaults to false.
   ///   timeout (Duration?): The maximum time to wait for execution.
   ///   withoutHelpers (bool): Whether to run the Lua code without library helpers. Mainly used internally by the SDK to bootstrap additional functions. Defaults to false.
-  /// 
+  ///
   /// Returns:
   ///   Future<String?>: The result of the Lua execution if `awaitPrint` is true.
   Future<String?> runLua(String luaString,
@@ -200,12 +206,11 @@ class Frame {
       bool checked = false,
       Duration? timeout,
       bool withoutHelpers = false}) async {
-    if (!withoutHelpers) {
-      await ensureConnected();
+    await ensureConnected();
+    if (useLibrary && !withoutHelpers) {
       luaString = luaString.replaceAllMapped(
           RegExp(r'\bprint\('), (match) => 'prntLng(');
     }
-
     if (luaString.length <= (bluetooth.maxStringLength ?? 0)) {
       if (checked && !awaitPrint) {
         final checkString = _generateRandomString(3);
@@ -224,23 +229,24 @@ class Frame {
       }
     }
 
-    if (!withoutHelpers) {
+    if (useLibrary && !withoutHelpers) {
       return await sendLongLua(luaString,
           awaitPrint: awaitPrint, checked: checked, timeout: timeout);
     } else {
       // the string is too long to send without helpers
-      throw const BrilliantBluetoothException("The string is too long to send without helpers");
+      throw const BrilliantBluetoothException(
+          "The string is too long to send without library helpers");
     }
   }
 
   /// Sends a Lua string to the device that is longer than the MTU limit.
-  /// 
+  ///
   /// Args:
   ///   string (String): The Lua code to execute.
   ///   awaitPrint (bool): Whether to wait for a print statement from the Lua code. Defaults to false.
   ///   checked (bool): Whether to wait for confirmation of successful execution. Defaults to false.
   ///   timeout (Duration?): The maximum time to wait for execution.
-  /// 
+  ///
   /// Returns:
   ///   Future<String?>: The result of the Lua execution if `awaitPrint` is true.
   Future<String?> sendLongLua(String string,
@@ -276,21 +282,25 @@ class Frame {
   }
 
   /// Evaluates a Lua expression on the device and returns the result.
-  /// 
+  ///
   /// Args:
   ///   luaExpression (String): The Lua expression to evaluate.
-  /// 
+  ///
   /// Returns:
   ///   Future<String>: The result of the evaluation.
   Future<String> evaluate(String luaExpression) async {
     await ensureConnected();
-    final result =
-        await runLua("prntLng(tostring($luaExpression))", awaitPrint: true);
-    return result ?? '';
+    if (useLibrary) {
+      return await runLua("prntLng(tostring($luaExpression))",
+              awaitPrint: true) ??
+          '';
+    } else {
+      return await runLua("print($luaExpression)", awaitPrint: true) ?? '';
+    }
   }
 
   /// Returns the battery level as a percentage between 1 and 100.
-  /// 
+  ///
   /// Returns:
   ///   Future<int>: The battery level percentage.
   Future<int> getBatteryLevel() async {
@@ -306,10 +316,10 @@ class Frame {
 
   /// Delays execution on Frame for a given duration. Technically this sends a sleep command,
   /// but it doesn't actually change the power mode. This function does not block, returning immediately.
-  /// 
+  ///
   /// Args:
   ///   duration (Duration): The duration to sleep.
-  /// 
+  ///
   /// Throws:
   ///   ArgumentError: If the duration is negative or zero.
   Future<void> delay(Duration duration) async {
@@ -319,19 +329,19 @@ class Frame {
   }
 
   /// Puts the Frame into sleep mode. There are two modes: normal and deep.
-  /// 
+  ///
   /// Normal sleep mode can still receive bluetooth data, and is essentially the same as
   /// clearing the display and putting the camera in low power mode. The Frame will retain
   /// the time and date, and any functions and variables will stay in memory.
-  /// 
+  ///
   /// Deep sleep mode saves additional power, but has more limitations. The Frame will not
   /// retain the time and date, and any functions and variables will not stay in memory.
   /// Bluetooth data will not be received. The only way to wake the Frame from deep sleep
   /// is to tap it.
-  /// 
+  ///
   /// The difference in power usage is fairly low, so it's often best to use normal sleep
   /// mode unless you need the extra power savings.
-  /// 
+  ///
   /// Args:
   ///   deep (bool): If true, puts the Frame into deep sleep mode. Defaults to false.
   Future<void> sleep([bool deep = false]) async {
@@ -359,7 +369,7 @@ class Frame {
   /// Prevents Frame from going to sleep while it's docked onto the charging cradle.
   /// This can help during development where continuous power is needed, however may
   /// degrade the display or cause burn-in if used for extended periods of time.
-  /// 
+  ///
   /// Args:
   ///   value (bool): True to stay awake, False to allow sleep.
   Future<void> stayAwake(bool value) async {
@@ -369,7 +379,7 @@ class Frame {
   }
 
   /// Injects a function into the global environment of the device. Used to push helper library functions to the device.
-  /// 
+  ///
   /// Args:
   ///   name (String): The name of the function.
   ///   function (String): The function code.
@@ -409,6 +419,9 @@ class Frame {
 
   /// Injects all library functions into the global environment of the device.
   Future<void> injectAllLibraryFunctions() async {
+    if (!useLibrary) {
+      return;
+    }
     final libraryVersion =
         libraryFunctions.hashCode.toRadixString(35).substring(0, 6);
     final response = await bluetooth.sendString(
@@ -423,10 +436,10 @@ class Frame {
   }
 
   /// Escapes a string for use in Lua.
-  /// 
+  ///
   /// Args:
   ///   string (String): The string to escape.
-  /// 
+  ///
   /// Returns:
   ///   String: The escaped string.
   String escapeLuaString(String string) {
@@ -443,7 +456,7 @@ class Frame {
   StreamSubscription<Uint8List>? _wakeSubscription;
 
   /// Runs a Lua function when the device wakes up from sleep. Can include Lua code to be run on Frame upon wake and/or a Dart callback to be run locally upon wake.
-  /// 
+  ///
   /// Args:
   ///   luaScript (String?): The Lua script to run on wake.
   ///   callback (Function?): The callback to run on wake.
@@ -479,11 +492,11 @@ class Frame {
   }
 
   /// Gets the character code from a string at the specified position.
-  /// 
+  ///
   /// Args:
   ///   string (String): The string to get the character code from.
   ///   pos (int): The position of the character.
-  /// 
+  ///
   /// Returns:
   ///   int: The character code.
   int getCharCodeFromStringAtPos(String string, int pos) {
@@ -491,7 +504,7 @@ class Frame {
   }
 
   /// Gets the platform version.
-  /// 
+  ///
   /// Returns:
   ///   Future<String?>: The platform version.
   Future<String?> getPlatformVersion() {
