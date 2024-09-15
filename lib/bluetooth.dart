@@ -504,9 +504,9 @@ class BrilliantDevice {
       file = file.replaceAll('"', '\\"');
 
       var resp =
-          await sendString("f=frame.file.open('$fileName', 'w');print('\x02')");
+      await sendString("f=frame.file.open('$fileName', 'write');print('o')", awaitResponse: true);
 
-      if (resp != "\x02") {
+      if (resp != "o") {
         throw ("Error opening file: $resp");
       }
 
@@ -526,18 +526,18 @@ class BrilliantDevice {
 
         String chunk = file.substring(index, index + chunkSize);
 
-        resp = await sendString("f:write('$chunk');print('\x02')");
+        resp = await sendString("f:write('$chunk');print('o')", awaitResponse: true);
 
-        if (resp != "\x02") {
+        if (resp != "o") {
           throw ("Error writing file: $resp");
         }
 
         index += chunkSize;
       }
 
-      resp = await sendString("f:close();print('\x02')");
+      resp = await sendString("f:close();print('o')", awaitResponse: true);
 
-      if (resp != "\x02") {
+      if (resp != "o") {
         throw ("Error closing file: $resp");
       }
     } catch (error) {
